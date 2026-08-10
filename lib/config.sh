@@ -10,16 +10,30 @@ mpe_cli_load_config() {
         source "$MPE_CLI_CONFIG"
         set +a
     fi
-    PI_HOST="${PI_HOST:-raspberrypi.local}"
-    SSH_KEY="${SSH_KEY:-$HOME/.ssh/your_pi_key}"
     PI_MPE_MODULE="${PI_MPE_MODULE:-}"
 }
 
 mpe_cli_require_config() {
     mpe_cli_load_config
+    local missing=0
     if [ -z "${PI_USER:-}" ]; then
         echo "$MPE_CLI_NAME: PI_USER not set." >&2
+        missing=1
+    fi
+    if [ -z "${PI_HOST:-}" ]; then
+        echo "$MPE_CLI_NAME: PI_HOST not set." >&2
+        missing=1
+    fi
+    if [ -z "${SSH_KEY:-}" ]; then
+        echo "$MPE_CLI_NAME: SSH_KEY not set." >&2
+        missing=1
+    fi
+    if [ "$missing" -ne 0 ]; then
         echo "Copy config/mpe.env.example to $MPE_CLI_CONFIG and set PI_USER, PI_HOST, SSH_KEY." >&2
+        exit 1
+    fi
+    if [ ! -f "$SSH_KEY" ]; then
+        echo "$MPE_CLI_NAME: SSH_KEY not found: $SSH_KEY" >&2
         exit 1
     fi
 }
