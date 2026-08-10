@@ -32,6 +32,7 @@ mpe status
 mpe logs touch -n 80
 mpe osc-check
 mpe diagnose
+mpe sysinfo                # board, kernel/preempt, EEPROM, RT limits, buffer latency
 mpe restart surge          # or touch | all
 mpe record                 # Ctrl+C to stop
 mpe pull-videos -o ~/Videos --delete-source
