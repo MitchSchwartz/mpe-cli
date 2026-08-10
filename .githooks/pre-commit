@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Optional local hook — install with: ./scripts/install-git-hooks.sh
+set -euo pipefail
+ROOT="$(git rev-parse --show-toplevel)"
+"$ROOT/scripts/secret-scan.sh"

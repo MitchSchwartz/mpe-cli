@@ -1,0 +1,22 @@
+# Gitleaks config for mpe-cli.
+# https://github.com/gitleaks/gitleaks
+
+title = "mpe-cli gitleaks"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Example env templates and docs with placeholders only"
+paths = [
+  '''(?i)mpe\.env\.example$''',
+  '''(?i)README\.md$''',
+  '''(?i)AGENTS\.md$''',
+]
+regexes = [
+  '''your-pi-username''',
+  '''your_pi_key''',
+  '''raspberrypi\.local''',
+  '''NEVER commit''',
+  '''gitleaks:allow''',
+]
