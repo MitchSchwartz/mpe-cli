@@ -1,0 +1,70 @@
+#!/bin/bash
+# Laptop-side CLI for remote appliance ops (SSH allowlist boundary).
+# Product repos stay on the device; this repo is the orchestrator only.
+
+set -euo pipefail
+
+MPE_CLI_ROOT="$(cd "$(dirname "$(readlink -f "$0" 2>/dev/null || echo "$0")")/.." && pwd)"
+MPE_CLI_NAME="$(basename "$0")"
+
+# shellcheck source=../lib/config.sh
+source "$MPE_CLI_ROOT/lib/config.sh"
+# shellcheck source=../lib/ssh.sh
+source "$MPE_CLI_ROOT/lib/ssh.sh"
+# shellcheck source=../lib/validate.sh
+source "$MPE_CLI_ROOT/lib/validate.sh"
+
+mpe_cli_usage() {
+    cat <<EOF
+Usage: $MPE_CLI_NAME <command> [options]
+
+Read-only (agent-safe):
+  ping                      Test SSH to the appliance
+  status                    Service active/failed summary
+  logs <surge|touch|watchdog> [-n N]   Recent logs (default $MPE_LOG_LINES_DEFAULT, max $MPE_LOG_LINES_MAX)
+  osc-check                 Surge OSC ports + process check
+  diagnose                  Full appliance diagnostics (read-only)
+
+Operations:
+  record [file] [fps]       Record touch UI (Ctrl+C to stop)
+  pull-videos [options]     Download ~/mpe-demo-*.mkv from appliance
+    -o, --output DIR        Destination (default: ./recordings)
+    --delete-source         Remove from appliance after download
+  restart <surge|touch|all> Restart fixed systemd units only
+
+Config: \$MPE_CLI_CONFIG (default: ~/.config/mpe/mpe.env)
+Security: AGENTS.md in this repo · pattern: OM-Repo Docs/appliance-cli-pattern.md
+EOF
+}
+
+mpe_cli_dispatch() {
+    local cmd="${1:-}"
+    if [ -z "$cmd" ] || [ "$cmd" = "-h" ] || [ "$cmd" = "--help" ] || [ "$cmd" = help ]; then
+        mpe_cli_usage
+        exit 0
+    fi
+    shift
+
+    local handler=""
+    case "$cmd" in
+        ping) handler=ping ;;
+        status) handler=status ;;
+        logs) handler=logs ;;
+        osc-check | osc) handler=osc-check ;;
+        diagnose) handler=diagnose ;;
+        restart) handler=restart ;;
+        record) handler=record ;;
+        pull-videos | pull) handler=pull-videos ;;
+        *)
+            echo "$MPE_CLI_NAME: unknown command: $cmd" >&2
+            echo "Run '$MPE_CLI_NAME help' for usage." >&2
+            exit 1
+            ;;
+    esac
+
+    # shellcheck source=/dev/null
+    source "$MPE_CLI_ROOT/commands/${handler}.sh"
+    "cmd_${handler//-/_}" "$@"
+}
+
+mpe_cli_dispatch "$@"
