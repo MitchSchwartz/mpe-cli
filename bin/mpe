@@ -36,6 +36,7 @@ Operations:
   restart <surge|touch|looper|all> Restart fixed systemd units only
   looper deploy [branch]     Pull yolo branch on Pi + restart mpe-looper.service
   looper restart             Restart mpe-looper.service only
+  looper debug on|off        Toggle period-overrun logging (/etc/mpe/mpe.env)
 
 Config: \$MPE_CLI_CONFIG (default: ~/.config/mpe/mpe.env)
 Security: AGENTS.md in this repo · pattern: OM-Repo Docs/appliance-cli-pattern.md

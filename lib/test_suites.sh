@@ -37,6 +37,7 @@ mpe_cli_test_suite_modules() {
                 tests.test_looper_devices \
                 tests.test_looper_xruns \
                 tests.test_looper_session \
+                tests.test_looper_period_debug \
                 tests.test_apc_led
             ;;
         midi)
