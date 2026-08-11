@@ -27,3 +27,12 @@ mpe_cli_require_tests_dir() {
         exit 1
     fi
 }
+
+# Remote bash lines: assign appliance repo path and cd (tilde expands when quoted).
+mpe_cli_remote_repo_cd() {
+    cat <<EOF
+repo="$(mpe_cli_remote_repo)"
+repo="\${repo/#\\~/\$HOME}"
+cd "\$repo" || exit 1
+EOF
+}

@@ -65,8 +65,7 @@ cmd_test() {
             echo "Repo: $repo"
             mpe_cli_remote_bash "
 set -euo pipefail
-repo=\"$(mpe_cli_remote_repo)\"
-cd \"\$repo\"
+$(mpe_cli_remote_repo_cd)
 if [ ! -d tests ]; then
   echo 'no tests/ in '\$repo >&2
   exit 1
