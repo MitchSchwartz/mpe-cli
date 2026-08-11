@@ -35,7 +35,9 @@ mpe_cli_test_suite_modules() {
             printf '%s\n' \
                 tests.test_looper_engine \
                 tests.test_looper_devices \
-                tests.test_looper_xruns
+                tests.test_looper_xruns \
+                tests.test_looper_session \
+                tests.test_apc_led
             ;;
         midi)
             printf '%s\n' \
