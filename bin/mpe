@@ -33,7 +33,9 @@ Operations:
   pull-videos [options]     Download ~/mpe-demo-*.mkv from appliance
     -o, --output DIR        Destination (default: ./recordings)
     --delete-source         Remove from appliance after download
-  restart <surge|touch|all> Restart fixed systemd units only
+  restart <surge|touch|looper|all> Restart fixed systemd units only
+  looper deploy [branch]     Pull yolo branch on Pi + restart mpe-looper.service
+  looper restart             Restart mpe-looper.service only
 
 Config: \$MPE_CLI_CONFIG (default: ~/.config/mpe/mpe.env)
 Security: AGENTS.md in this repo · pattern: OM-Repo Docs/appliance-cli-pattern.md
@@ -59,6 +61,7 @@ mpe_cli_dispatch() {
         test) handler=test ;;
         midi-list | midilist | midi) handler=midi-list ;;
         restart) handler=restart ;;
+        looper) handler=looper ;;
         record) handler=record ;;
         pull-videos | pull) handler=pull-videos ;;
         *)

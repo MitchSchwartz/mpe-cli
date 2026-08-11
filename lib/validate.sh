@@ -1,6 +1,14 @@
 MPE_LOG_LINES_DEFAULT=50
 MPE_LOG_LINES_MAX=200
 
+mpe_cli_validate_git_branch() {
+    local branch="$1"
+    if [[ ! "$branch" =~ ^[a-zA-Z0-9/_.-]+$ ]]; then
+        echo "$MPE_CLI_NAME: invalid branch name: $branch" >&2
+        exit 1
+    fi
+}
+
 mpe_cli_clamp_log_lines() {
     local raw="${1:-$MPE_LOG_LINES_DEFAULT}"
     if ! [[ "$raw" =~ ^[0-9]+$ ]]; then
