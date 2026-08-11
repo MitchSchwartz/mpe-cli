@@ -33,6 +33,12 @@ mpe logs touch -n 80
 mpe osc-check
 mpe diagnose
 mpe sysinfo                # board, kernel/preempt, EEPROM, RT limits, buffer latency
+mpe test                   # full unit test suite on laptop (allowlist-friendly)
+mpe test pi                # full suite on appliance
+mpe test list              # named suite registry
+mpe test apc               # example: APC + control-surface tests only
+mpe test pi looper         # example: looper tests on Pi
+mpe midi-list              # USB + MIDI port snapshot (read-only)
 mpe restart surge          # or touch | all
 mpe record                 # Ctrl+C to stop
 mpe pull-videos -o ~/Videos --delete-source

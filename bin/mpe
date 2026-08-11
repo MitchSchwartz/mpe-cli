@@ -25,6 +25,8 @@ Read-only (agent-safe):
   osc-check                 Surge OSC ports + process check
   diagnose                  Full appliance diagnostics (read-only)
   sysinfo                   Board, kernel/preempt, EEPROM, RT limits, audio config
+  test [local|pi] [suite]   Run unit tests (default: local, all); test list for suites
+  midi-list [local|pi]      USB + ALSA MIDI port snapshot (read-only)
 
 Operations:
   record [file] [fps]       Record touch UI (Ctrl+C to stop)
@@ -54,6 +56,8 @@ mpe_cli_dispatch() {
         osc-check | osc) handler=osc-check ;;
         diagnose) handler=diagnose ;;
         sysinfo) handler=sysinfo ;;
+        test) handler=test ;;
+        midi-list | midilist | midi) handler=midi-list ;;
         restart) handler=restart ;;
         record) handler=record ;;
         pull-videos | pull) handler=pull-videos ;;

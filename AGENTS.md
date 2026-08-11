@@ -10,9 +10,10 @@
 
 1. **No arbitrary remote shell.** Subcommands map to fixed scripts, systemd units, or enum args — never pass user strings through to `ssh`.
 2. **No host override flags.** Connection comes only from `~/.config/mpe/mpe.env` (`PI_HOST`, `PI_USER`, `SSH_KEY`).
-3. **New commands:** enum-only targets where possible; cap numeric args (e.g. log lines ≤ 200).
-4. **Edits to this repo require Mitch approval** — allowlists trust these entrypoints; changing them is a security event.
-5. **Do not edit `~/.config/mpe/mpe.env` without approval** — retargeting the host bypasses allowlist intent.
+3. **New commands:** enum-only targets where possible; cap numeric args (e.g. log lines ≤ 200). Test suites live in `lib/test_suites.sh` — add names there, never pass arbitrary module paths from argv.
+4. **Document allowlist strings** — exact invocations agents may run (include common `mpe test <suite>` names).
+5. **Edits to this repo require Mitch approval** — allowlists trust these entrypoints; changing them is a security event.
+6. **Do not edit `~/.config/mpe/mpe.env` without approval** — retargeting the host bypasses allowlist intent.
 
 ## Adding a subcommand
 
