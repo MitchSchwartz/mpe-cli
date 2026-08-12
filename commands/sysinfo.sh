@@ -103,5 +103,36 @@ if [ -n "$_buf" ] && [ -n "$_rate" ] && [ "$_rate" -gt 0 ] 2>/dev/null; then
 else
     echo "(buffer/rate not set)"
 fi
+
+echo ""
+echo "=== AUDIO BACKENDS (graph-server feasibility) ==="
+_sbin=""
+if [ -n "$_pid" ]; then
+    _sbin=$(readlink -f /proc/$_pid/exe 2>/dev/null)
+fi
+printf "Surge binary:  %s\n" "${_sbin:-(not running)}"
+printf "Surge JACK:    "
+if [ -n "$_sbin" ] && [ -r "$_sbin" ]; then
+    _lj=$(ldd "$_sbin" 2>/dev/null | grep -ci jack)
+    _sj=$(strings -a "$_sbin" 2>/dev/null | grep -c "^JACK_DEFAULT_SERVER\|jack_client_open")
+    if [ "${_lj:-0}" -gt 0 ]; then
+        echo "linked against libjack (ldd match)"
+    elif [ "${_sj:-0}" -gt 0 ]; then
+        echo "jack symbols present, not dynamically linked — likely dlopen at runtime"
+    else
+        echo "NO jack references found — cannot be a JACK/PipeWire client"
+    fi
+else
+    echo "(binary unreadable)"
+fi
+printf "libjack:       "; ldconfig -p 2>/dev/null | grep -m1 -o "libjack\.so[^ ]*" || echo "not installed"
+printf "PipeWire:      "
+if command -v pipewire >/dev/null 2>&1; then
+    pipewire --version 2>&1 | head -1
+else
+    echo "not installed"
+fi
+printf "pipewire-jack: "; ldconfig -p 2>/dev/null | grep -c "pipewire-0.3/jack" 2>/dev/null || echo 0
+printf "jackd:         "; command -v jackd >/dev/null 2>&1 && jackd --version 2>&1 | head -1 || echo "not installed"
 '
 }
