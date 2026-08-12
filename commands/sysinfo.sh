@@ -26,7 +26,6 @@ echo ""
 echo "=== BOOT / FIRMWARE ==="
 printf "EEPROM:      "; vcgencmd bootloader_version 2>/dev/null | tr "\n" " " || echo "(vcgencmd unavailable)"; echo
 printf "Firmware:    "; vcgencmd version 2>/dev/null | tr "\n" " "; echo
-printf "Throttled:   "; vcgencmd get_throttled 2>/dev/null || echo "(unavailable)"
 printf "Booted via tryboot: "
 if [ -e /proc/device-tree/chosen/bootloader/tryboot ]; then
     tr -d "\0" < /proc/device-tree/chosen/bootloader/tryboot; echo
@@ -37,6 +36,48 @@ printf "config.txt kernel:  "
 grep -E "^ *(kernel|os_prefix)=" /boot/firmware/config.txt 2>/dev/null | tr "\n" " " || echo "(none - firmware default)"
 echo
 printf "tryboot.txt: "; [ -f /boot/firmware/tryboot.txt ] && echo "present" || echo "absent"
+
+echo ""
+echo "=== POWER + CLOCK ==="
+_thr=$(vcgencmd get_throttled 2>/dev/null | cut -d= -f2)
+if [ -n "$_thr" ]; then
+    _t=$((_thr))
+    _now=""
+    _past=""
+    if [ $((_t & 0x1)) -ne 0 ]; then _now="$_now under-voltage"; fi
+    if [ $((_t & 0x2)) -ne 0 ]; then _now="$_now arm-freq-capped"; fi
+    if [ $((_t & 0x4)) -ne 0 ]; then _now="$_now THROTTLED"; fi
+    if [ $((_t & 0x8)) -ne 0 ]; then _now="$_now soft-temp-limit"; fi
+    if [ $((_t & 0x10000)) -ne 0 ]; then _past="$_past under-voltage"; fi
+    if [ $((_t & 0x20000)) -ne 0 ]; then _past="$_past arm-freq-capped"; fi
+    if [ $((_t & 0x40000)) -ne 0 ]; then _past="$_past throttled"; fi
+    if [ $((_t & 0x80000)) -ne 0 ]; then _past="$_past soft-temp-limit"; fi
+    printf "Throttled:   %s\n" "$_thr"
+    printf "  right now: %s\n" "${_now:-none}"
+    printf "  since boot:%s\n" " ${_past:-none}"
+else
+    echo "Throttled:   (vcgencmd unavailable)"
+fi
+printf "ARM clock:   "
+_ac=$(vcgencmd measure_clock arm 2>/dev/null | cut -d= -f2)
+_amax=$(vcgencmd get_config arm_freq 2>/dev/null | cut -d= -f2)
+if [ -n "$_ac" ] && [ "$_ac" -gt 0 ] 2>/dev/null; then
+    printf "%s MHz now" "$((_ac / 1000000))"
+    if [ -n "$_amax" ]; then printf " / %s MHz configured" "$_amax"; fi
+    echo ""
+else
+    echo "(unavailable)"
+fi
+printf "cpufreq:     "
+_cur=$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq 2>/dev/null)
+_max=$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq 2>/dev/null)
+if [ -n "$_cur" ] && [ -n "$_max" ]; then
+    printf "%s MHz cur / %s MHz max\n" "$((_cur / 1000))" "$((_max / 1000))"
+else
+    echo "(unavailable)"
+fi
+printf "Core volts:  "; vcgencmd measure_volts core 2>/dev/null | cut -d= -f2 || echo "(unavailable)"
+printf "SoC temp:    "; vcgencmd measure_temp 2>/dev/null | cut -d= -f2 || echo "(unavailable)"
 
 echo ""
 echo "=== AUDIO SCHEDULING ==="

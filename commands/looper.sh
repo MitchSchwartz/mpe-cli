@@ -20,19 +20,24 @@ cmd_looper() {
         debug)
             cmd_looper_debug "$@"
             ;;
+        buffer)
+            cmd_looper_buffer "$@"
+            ;;
         -h | --help | help | "")
             cat <<EOF
 Usage: $MPE_CLI_NAME looper deploy [branch]
        $MPE_CLI_NAME looper restart
        $MPE_CLI_NAME looper debug on|off
+       $MPE_CLI_NAME looper buffer 512|1024
 
   deploy   git pull on Pi + restart mpe-looper.service (default branch: $(mpe_cli_default_looper_branch))
   restart  systemctl restart mpe-looper.service only
   debug    Toggle MPE_LOOPER_DEBUG in /etc/mpe/mpe.env and restart looper
+  buffer   Set MPE_SURGE_BUFFER_SIZE (Surge + looper period) and restart both services
 EOF
             ;;
         *)
-            echo "$MPE_CLI_NAME looper: unknown subcommand: $sub (use deploy|restart|debug)" >&2
+            echo "$MPE_CLI_NAME looper: unknown subcommand: $sub (use deploy|restart|debug|buffer)" >&2
             exit 1
             ;;
     esac
@@ -79,4 +84,26 @@ cmd_looper_debug() {
     esac
     cmd_looper_restart
     echo "$MPE_CLI_NAME: MPE_LOOPER_DEBUG=$mode — reproduce stutter, then: mpe logs looper -n 30"
+}
+
+cmd_looper_buffer() {
+    mpe_cli_require_config
+    local size="${1:-}"
+    case "$size" in
+        512 | 1024) ;;
+        -h | --help | "")
+            echo "Usage: $MPE_CLI_NAME looper buffer 512|1024" >&2
+            exit 1
+            ;;
+        *)
+            echo "$MPE_CLI_NAME looper buffer: use 512 or 1024 (got: $size)" >&2
+            exit 1
+            ;;
+    esac
+    mpe_cli_ssh "sudo bash -c 'if grep -q \"^MPE_SURGE_BUFFER_SIZE=\" /etc/mpe/mpe.env 2>/dev/null; then sed -i \"s/^MPE_SURGE_BUFFER_SIZE=.*/MPE_SURGE_BUFFER_SIZE=${size}/\" /etc/mpe/mpe.env; else echo MPE_SURGE_BUFFER_SIZE=${size} >> /etc/mpe/mpe.env; fi'"
+    mpe_cli_ssh "sudo systemctl restart surge-xt-cli.service"
+    mpe_cli_ssh "sudo systemctl restart mpe-looper.service"
+    echo "$MPE_CLI_NAME: MPE_SURGE_BUFFER_SIZE=${size} — restarted surge + looper"
+    echo "  Verify: mpe sysinfo && mpe logs looper -n 8"
+    echo "  Note: looper-audio-route.sh on forces 512 — skip during 1024 A/B"
 }
