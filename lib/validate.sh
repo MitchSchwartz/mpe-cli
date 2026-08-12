@@ -9,6 +9,19 @@ mpe_cli_validate_git_branch() {
     fi
 }
 
+# Check a value against a space-separated allowlist. Fixed enums are the whole
+# point of this CLI: they let Cursor allowlist an entrypoint without allowing
+# arbitrary remote shell, so never interpolate free-form input into a command.
+mpe_cli_validate_enum() {
+    local value="$1" allowed="$2" label="$3"
+    local candidate
+    for candidate in $allowed; do
+        [ "$value" = "$candidate" ] && return 0
+    done
+    echo "$MPE_CLI_NAME: $label must be one of: $allowed (got: ${value:-<empty>})" >&2
+    exit 1
+}
+
 mpe_cli_clamp_log_lines() {
     local raw="${1:-$MPE_LOG_LINES_DEFAULT}"
     if ! [[ "$raw" =~ ^[0-9]+$ ]]; then

@@ -114,14 +114,21 @@ printf "Surge binary:  %s\n" "${_sbin:-(not running)}"
 printf "Surge JACK:    "
 if [ -n "$_sbin" ] && [ -r "$_sbin" ]; then
     _lj=$(ldd "$_sbin" 2>/dev/null | grep -ci jack)
-    _sj=$(strings -a "$_sbin" 2>/dev/null | grep -c "^JACK_DEFAULT_SERVER\|jack_client_open")
+    # JUCE compiles its JACK backend in and dlopens libjack at runtime, so the
+    # giveaway is the dlopen target string plus the dlsym symbol names.
+    _dlopen=$(strings -a "$_sbin" 2>/dev/null | grep -m1 -o "libjack\.so[^\"]*")
+    _syms=$(strings -a "$_sbin" 2>/dev/null | grep -c "^jack_client_open$\|^jack_activate$\|^jack_port_register$\|^jack_get_ports$")
     if [ "${_lj:-0}" -gt 0 ]; then
-        echo "linked against libjack (ldd match)"
-    elif [ "${_sj:-0}" -gt 0 ]; then
-        echo "jack symbols present, not dynamically linked — likely dlopen at runtime"
+        echo "linked against libjack (ldd)"
+    elif [ -n "$_dlopen" ] && [ "${_syms:-0}" -ge 2 ]; then
+        echo "COMPILED IN — dlopens ${_dlopen}, ${_syms} jack_* symbols resolved by name"
+    elif [ "${_syms:-0}" -gt 0 ] || [ -n "$_dlopen" ]; then
+        echo "partial evidence (dlopen=${_dlopen:-none} symbols=${_syms:-0}) — inconclusive"
     else
-        echo "NO jack references found — cannot be a JACK/PipeWire client"
+        echo "NO jack references — cannot be a JACK/PipeWire client"
     fi
+    printf "JUCE types:    "
+    strings -a "$_sbin" 2>/dev/null | grep -x "JACK\|ALSA\|ALSA HW" | sort -u | tr "\n" " "; echo
 else
     echo "(binary unreadable)"
 fi

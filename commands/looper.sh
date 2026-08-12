@@ -54,7 +54,11 @@ git stash push -q -m mpe-looper-deploy -- scripts/mpe-looper.py 2>/dev/null || t
 git fetch origin \"\$branch\"
 git checkout \"\$branch\"
 git pull origin \"\$branch\"
-./scripts/looper-deploy.sh \"\$branch\""
+if [ -x ./scripts/looper-deploy.sh ]; then
+    ./scripts/looper-deploy.sh \"\$branch\"
+else
+    echo \"mpe looper deploy: scripts/looper-deploy.sh not found — git sync only (no looper restart)\"
+fi"
 }
 
 cmd_looper_restart() {

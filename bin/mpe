@@ -21,7 +21,7 @@ Usage: $MPE_CLI_NAME <command> [options]
 Read-only (agent-safe):
   ping                      Test SSH to the appliance
   status                    Service active/failed summary
-  logs <surge|touch|looper|watchdog> [-n N]   Recent logs (default $MPE_LOG_LINES_DEFAULT, max $MPE_LOG_LINES_MAX)
+  logs <surge|touch|looper|watchdog|jackd> [-n N]   Recent logs (default $MPE_LOG_LINES_DEFAULT, max $MPE_LOG_LINES_MAX)
   osc-check                 Surge OSC ports + process check
   diagnose                  Full appliance diagnostics (read-only)
   sysinfo                   Board, kernel/preempt, EEPROM, RT limits, audio config
@@ -34,9 +34,14 @@ Operations:
   pull-videos [options]     Download ~/mpe-demo-*.mkv from appliance
     -o, --output DIR        Destination (default: ./recordings)
     --delete-source         Remove from appliance after download
-  restart <surge|touch|looper|all> Restart fixed systemd units only
+  restart <surge|touch|looper|jackd|all> Restart fixed systemd units only
   rt status                  Show configured + live SCHED_FIFO state (read-only)
   rt surge|looper <1-95|off> Set realtime priority; restart that service
+  jack <sub>                 JACK graph-server experiment (never the boot path)
+                             install|devices|start|surge|ports|status|logs|stop
+                             'jack stop' is the rollback to systemd Surge
+  engine <sub>               Audio engine status + soak injections (production path)
+                             status|set jack|alsa|mask-jackd|unmask-jackd|start-jackd|sync-units|kill-jackd
   looper deploy [branch]     Pull yolo branch on Pi + restart mpe-looper.service
   looper restart             Restart mpe-looper.service only
   looper debug on|off        Toggle period-overrun logging (/etc/mpe/mpe.env)
@@ -68,6 +73,8 @@ mpe_cli_dispatch() {
         midi-list | midilist | midi) handler=midi-list ;;
         restart) handler=restart ;;
         rt) handler=rt ;;
+        jack) handler=jack ;;
+        engine) handler=engine ;;
         looper) handler=looper ;;
         record) handler=record ;;
         pull-videos | pull) handler=pull-videos ;;

@@ -10,7 +10,7 @@ cmd_logs() {
                 lines="$(mpe_cli_clamp_log_lines "${1:-}")"
                 ;;
             -h | --help)
-                echo "Usage: $MPE_CLI_NAME logs <surge|touch|looper|watchdog> [-n N]"
+                echo "Usage: $MPE_CLI_NAME logs <surge|touch|looper|watchdog|jackd> [-n N]"
                 exit 0
                 ;;
             *)
@@ -33,12 +33,15 @@ cmd_logs() {
         watchdog)
             mpe_cli_ssh "journalctl -u surge-watchdog.service -n $lines --no-pager"
             ;;
+        jackd)
+            mpe_cli_ssh "journalctl -u mpe-jackd.service -n $lines --no-pager"
+            ;;
         "" | -h | --help)
             echo "Usage: $MPE_CLI_NAME logs <surge|touch|looper|watchdog> [-n N]" >&2
             exit 1
             ;;
         *)
-            echo "$MPE_CLI_NAME logs: unknown target: $target (use surge, touch, looper, or watchdog)" >&2
+            echo "$MPE_CLI_NAME logs: unknown target: $target (use surge, touch, looper, watchdog, or jackd)" >&2
             exit 1
             ;;
     esac

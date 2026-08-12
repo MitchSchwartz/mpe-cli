@@ -2,6 +2,7 @@ cmd_status() {
     mpe_cli_require_config
     mpe_cli_remote_bash '
 services=(
+  mpe-jackd.service
   surge-xt-cli.service
   surge-watchdog.service
   touch-patch-browser.service
@@ -23,7 +24,7 @@ done
 if [ -f /etc/mpe/mpe.env ]; then
   echo ""
   echo "  /etc/mpe/mpe.env:"
-  grep -E "^(MPE_UI_MODE|MPE_AUDIO_PROFILE)=" /etc/mpe/mpe.env 2>/dev/null | sed "s/^/    /" || true
+  grep -E "^(MPE_UI_MODE|MPE_AUDIO_PROFILE|MPE_AUDIO_ENGINE)=" /etc/mpe/mpe.env 2>/dev/null | sed "s/^/    /" || true
 fi
 '
 }

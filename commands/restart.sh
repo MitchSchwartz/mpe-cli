@@ -14,6 +14,10 @@ cmd_restart() {
             mpe_cli_ssh "sudo systemctl restart mpe-looper.service"
             echo "$MPE_CLI_NAME: restarted mpe-looper.service"
             ;;
+        jackd)
+            mpe_cli_ssh "sudo systemctl restart mpe-jackd.service"
+            echo "$MPE_CLI_NAME: restarted mpe-jackd.service"
+            ;;
         all)
             mpe_cli_remote_bash '
 # shellcheck source=lib/mpe-services.sh
@@ -24,11 +28,11 @@ echo "  restarted surge + patch browser (+ boot animation when applicable)"
             echo "$MPE_CLI_NAME: restarted core services"
             ;;
         -h | --help | "")
-            echo "Usage: $MPE_CLI_NAME restart <surge|touch|looper|all>" >&2
+            echo "Usage: $MPE_CLI_NAME restart <surge|touch|looper|jackd|all>" >&2
             exit 1
             ;;
         *)
-            echo "$MPE_CLI_NAME restart: unknown target: $target (use surge, touch, looper, or all)" >&2
+            echo "$MPE_CLI_NAME restart: unknown target: $target (use surge, touch, looper, jackd, or all)" >&2
             exit 1
             ;;
     esac
