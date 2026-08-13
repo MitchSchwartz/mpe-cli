@@ -42,13 +42,12 @@ Operations:
     -o, --output DIR        Destination (default: ./recordings)
     --delete-source         Remove from appliance after download
   restart <surge|touch|looper|jackd|watchdog|all> Restart fixed systemd units only
-  rt status                  Show configured + live SCHED_FIFO state (read-only)
-  rt surge|looper <1-95|off> Set realtime priority; restart that service
+  rt status                  RT chain check: LimitRTPRIO ceiling + live SCHED_FIFO (read-only)
   jack <sub>                 JACK graph-server experiment (never the boot path)
                              install|devices|start|surge|ports|status|logs|stop
                              'jack stop' is the rollback to systemd Surge
   engine <sub>               Audio engine status + soak injections (production path)
-                             status|set jack|alsa|mask-jackd|unmask-jackd|start-jackd|sync-units|kill-jackd
+                             status|mask-jackd|unmask-jackd|start-jackd|sync-units|kill-jackd
   looper deploy [branch]     Pull yolo branch on Pi + restart mpe-looper.service
   looper restart             Restart mpe-looper.service only
   looper debug on|off        Toggle period-overrun logging (/etc/mpe/mpe.env)
