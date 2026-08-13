@@ -24,17 +24,26 @@ cmd_looper() {
         buffer)
             cmd_looper_buffer "$@"
             ;;
+        enable)
+            cmd_looper_enable "$@"
+            ;;
+        disable)
+            cmd_looper_disable "$@"
+            ;;
         -h | --help | help | "")
             cat <<EOF
 Usage: $MPE_CLI_NAME looper deploy [branch]
        $MPE_CLI_NAME looper restart
        $MPE_CLI_NAME looper debug on|off
        $MPE_CLI_NAME looper buffer 512|1024
+       $MPE_CLI_NAME looper enable|disable
 
   deploy   git pull on Pi + restart mpe-looper.service (default branch: $(mpe_cli_default_looper_branch))
   restart  systemctl restart mpe-looper.service only
   debug    Toggle MPE_LOOPER_DEBUG in /etc/mpe/mpe.env and restart looper
   buffer   Set MPE_SURGE_BUFFER_SIZE (Surge + looper period) and restart both services
+  enable   Set MPE_LOOPER_ENABLED=1 in /etc/mpe/mpe.env (D5 guard test — reboot after)
+  disable  Remove MPE_LOOPER_ENABLED from /etc/mpe/mpe.env
 EOF
             ;;
         *)
@@ -111,4 +120,16 @@ cmd_looper_buffer() {
     echo "$MPE_CLI_NAME: MPE_SURGE_BUFFER_SIZE=${size} — restarted surge + looper"
     echo "  Verify: mpe sysinfo && mpe logs looper -n 8"
     echo "  Note: looper-audio-route.sh on forces 512 — skip during 1024 A/B"
+}
+
+cmd_looper_enable() {
+    mpe_cli_require_config
+    mpe_cli_ssh "sudo bash -c 'if grep -q \"^MPE_LOOPER_ENABLED=\" /etc/mpe/mpe.env 2>/dev/null; then sed -i \"s/^MPE_LOOPER_ENABLED=.*/MPE_LOOPER_ENABLED=1/\" /etc/mpe/mpe.env; else echo MPE_LOOPER_ENABLED=1 >> /etc/mpe/mpe.env; fi'"
+    echo "$MPE_CLI_NAME: MPE_LOOPER_ENABLED=1 — reboot for D5 guard test"
+}
+
+cmd_looper_disable() {
+    mpe_cli_require_config
+    mpe_cli_ssh "sudo bash -c 'sed -i \"/^MPE_LOOPER_ENABLED=/d\" /etc/mpe/mpe.env'"
+    echo "$MPE_CLI_NAME: MPE_LOOPER_ENABLED removed"
 }
