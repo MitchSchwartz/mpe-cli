@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Product repo paths (laptop clone + remote appliance clone).
 
 mpe_cli_local_repo() {

@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # List MIDI ports (read-only). Helps verify controllers (APC mini, RC-5, Roli).
 
 # shellcheck source=../lib/target.sh

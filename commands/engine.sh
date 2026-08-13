@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Audio engine — status and Gate B soak injections.
 #
 # JACK is the only engine (MPE-Module spec amended 2026-08-13); there is no

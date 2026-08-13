@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Realtime scheduling (SCHED_FIFO) on the audio path — read-only.
 #
 # How RT actually works on this appliance, since the chrt wrapper was removed:

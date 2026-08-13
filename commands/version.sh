@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # shellcheck source=../lib/version.sh
 source "$MPE_CLI_ROOT/lib/version.sh"
 

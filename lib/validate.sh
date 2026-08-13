@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 MPE_LOG_LINES_DEFAULT=50
 MPE_LOG_LINES_MAX=200
 

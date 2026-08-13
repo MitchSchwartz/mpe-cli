@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Looper yolo deploy + systemd restart (fixed SSH surface for agents).
 
 # shellcheck source=../lib/repo.sh

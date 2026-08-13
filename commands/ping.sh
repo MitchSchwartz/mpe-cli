@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 cmd_ping() {
     mpe_cli_require_config
     if mpe_cli_ssh "echo ok" >/dev/null; then
