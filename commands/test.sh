@@ -10,8 +10,18 @@ source "$MPE_CLI_ROOT/lib/test_coverage.sh"
 # Run product-repo unit tests (laptop or Pi). Agent-safe — fixed unittest invocations only.
 
 cmd_test() {
-    local arg1="${1:-}"
-    local arg2="${2:-}"
+    local allow_partial=0
+    local positional=()
+    local word
+    for word in "$@"; do
+        case "$word" in
+            --allow-partial) allow_partial=1 ;;
+            *) positional+=("$word") ;;
+        esac
+    done
+
+    local arg1="${positional[0]:-}"
+    local arg2="${positional[1]:-}"
     local target suite
 
     case "$arg1" in
@@ -27,7 +37,7 @@ cmd_test() {
             return 0
             ;;
         coverage)
-            cmd_test_coverage "${2:-local}"
+            cmd_test_coverage "${arg2:-local}"
             return $?
             ;;
     esac
@@ -47,7 +57,7 @@ cmd_test() {
     fi
 
     local unittest_cmd
-    unittest_cmd="$(mpe_cli_test_unittest_cmd "$suite")" || exit 1
+    unittest_cmd="$(mpe_cli_test_unittest_cmd "$suite" "$allow_partial")" || exit 1
 
     case "$target" in
         local)
@@ -83,7 +93,8 @@ $unittest_cmd
 }
 
 # Registry drift guard: fail if the product repo has a test module that no
-# suite names. Read-only; runs the same comparison locally or on the appliance.
+# suite names, or a shell test that CI never invokes. Read-only; runs the same
+# comparison locally or on the appliance.
 cmd_test_coverage() {
     local target
     target="$(mpe_cli_normalize_target "${1:-local}")" || exit 1
@@ -122,7 +133,7 @@ $check_cmd
 
 mpe_cli_test_usage() {
     cat <<EOF
-Usage: $MPE_CLI_NAME test [local|pi] [suite]
+Usage: $MPE_CLI_NAME test [local|pi] [suite] [--allow-partial]
 
   test              Full suite on laptop (default)
   test local        Same
@@ -135,13 +146,23 @@ Usage: $MPE_CLI_NAME test [local|pi] [suite]
 
 Suites: $(mpe_cli_test_suite_list | tr '\n' ' ' | sed 's/ $//')
 
-A named suite skips modules absent from the checkout (feature work lives on
-unmerged branches) and reports what it skipped. A suite that matches nothing
-is an error, not a pass.
+'all' mirrors the product repo's CI: unittest discovery plus every
+tests/test_*.sh shell test.
+
+A named suite reports modules absent from this checkout (feature work lives on
+unmerged branches). Exit codes:
+
+  0  everything the suite names ran, and passed
+  1  a test failed, or the suite matched nothing at all
+  3  what ran passed, but part of the suite was absent here
+
+--allow-partial turns a 3 into a 0. Use it when you are knowingly on a branch
+that does not carry the rest of the suite.
 
 Allowlist examples:
   $MPE_CLI_NAME test · $MPE_CLI_NAME test local · $MPE_CLI_NAME test pi
   $MPE_CLI_NAME test list · $MPE_CLI_NAME test coverage
   $MPE_CLI_NAME test apc · $MPE_CLI_NAME test looper · $MPE_CLI_NAME test pi apc
+  $MPE_CLI_NAME test looper --allow-partial
 EOF
 }
