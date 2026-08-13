@@ -25,6 +25,9 @@ cmd_engine() {
         sync-units)
             cmd_engine_sync_units "$@"
             ;;
+        calibrate-smoke)
+            cmd_engine_calibrate_smoke "$@"
+            ;;
         kill-jackd)
             cmd_engine_kill_jackd "$@"
             ;;
@@ -41,6 +44,7 @@ Usage: $MPE_CLI_NAME engine status
   unmask-jackd systemctl unmask mpe-jackd.service (soak 2d prep)
   start-jackd  systemctl start mpe-jackd.service
   sync-units   configure-pi-paths.sh --local --force on the Pi (restore units after mask)
+  calibrate-smoke  One-patch cal with jackd up (criterion 14 smoke)
   kill-jackd   pkill jackd on the production graph (soak 2b); --kill for SIGKILL
 EOF
             ;;
@@ -165,6 +169,24 @@ cd "$repo"
 ./scripts/configure-pi-paths.sh --local --force
 '
     echo "$MPE_CLI_NAME: Pi systemd units refreshed (configure-pi-paths --local --force)"
+}
+
+cmd_engine_calibrate_smoke() {
+    mpe_cli_require_config
+    echo "$MPE_CLI_NAME: criterion 14 smoke — 1 favorite patch, jackd stays up until cal stops Surge"
+    mpe_cli_remote_bash '
+set -e
+repo="${MPE_MODULE_REPO:-$HOME/MPE-Module}"
+cd "$repo"
+echo "=== PRE (jackd should be running) ==="
+pgrep -x jackd >/dev/null && echo "jackd: running ($(pgrep -x jackd | head -1))" || echo "jackd: not running"
+systemctl is-active mpe-jackd.service surge-xt-cli.service 2>/dev/null || true
+python3 scripts/calibrate-patch-normalization.py --favorites-only --limit 1 --no-touch-cal --force
+echo "=== POST ==="
+pgrep -x jackd >/dev/null && echo "jackd: running ($(pgrep -x jackd | head -1))" || echo "jackd: not running"
+systemctl is-active mpe-jackd.service surge-xt-cli.service touch-patch-browser.service 2>/dev/null || true
+'
+    echo "$MPE_CLI_NAME: calibrate-smoke finished — check: $MPE_CLI_NAME engine status"
 }
 
 cmd_engine_kill_jackd() {
