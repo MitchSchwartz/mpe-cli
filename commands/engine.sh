@@ -1,4 +1,9 @@
-# Audio engine (jack | alsa) — status, config, and Gate B soak injections.
+# Audio engine — status and Gate B soak injections.
+#
+# JACK is the only engine (MPE-Module spec amended 2026-08-13); there is no
+# `alsa` value left and MPE_AUDIO_ENGINE is retired. `engine set` is gone
+# rather than kept as a no-op: a soak runner needs a hard failure, not a
+# success message for a change that cannot happen.
 #
 # Production graph server is mpe-jackd.service + surge-watchdog reconciliation.
 # Do NOT use `mpe jack stop` for soak — that is the manual experiment rollback path.
@@ -11,7 +16,11 @@ cmd_engine() {
             cmd_engine_status "$@"
             ;;
         set)
-            cmd_engine_set "$@"
+            echo "$MPE_CLI_NAME engine set: removed — JACK is the only audio engine." >&2
+            echo "There is no 'alsa' value and MPE_AUDIO_ENGINE is read by nothing." >&2
+            echo "A jackd that will not start is a hard failure (state=failed), not a" >&2
+            echo "route to an alternate engine. Rollback of the whole change is the spec." >&2
+            exit 1
             ;;
         mask-jackd)
             cmd_engine_mask_jackd "$@"
@@ -34,12 +43,10 @@ cmd_engine() {
         -h | --help | help | "")
             cat <<EOF
 Usage: $MPE_CLI_NAME engine status
-       $MPE_CLI_NAME engine set jack|alsa
        $MPE_CLI_NAME engine mask-jackd|unmask-jackd|start-jackd|sync-units
        $MPE_CLI_NAME engine kill-jackd [--kill]
 
   status       Published /run/mpe/engine.state + jackd/surge unit state
-  set          Write MPE_AUDIO_ENGINE to /etc/mpe/mpe.env (reboot to apply)
   mask-jackd   systemctl mask mpe-jackd.service (soak 2a — reboot after)
   unmask-jackd systemctl unmask mpe-jackd.service (soak 2d prep)
   start-jackd  systemctl start mpe-jackd.service
@@ -90,20 +97,10 @@ if command -v jack_lsp >/dev/null 2>&1 && pgrep -x jackd >/dev/null; then
         echo "  Surge on graph: no"
     fi
 fi
-if [ -f /etc/mpe/mpe.env ]; then
-    echo ""
-    echo "=== CONFIG ==="
-    grep -E "^MPE_AUDIO_ENGINE=" /etc/mpe/mpe.env 2>/dev/null | sed "s/^/  /" || echo "  MPE_AUDIO_ENGINE unset (default jack)"
-fi
+# The engine is unconditionally jack — there is no config surface left to show.
+# A stale MPE_AUDIO_ENGINE line from a pre-amendment appliance is deliberately
+# *not* surfaced here: it has no effect, and printing it would imply it does.
 '
-}
-
-cmd_engine_set() {
-    mpe_cli_require_config
-    local engine="${1:-}"
-    mpe_cli_validate_enum "$engine" "jack alsa" "engine"
-    mpe_cli_ssh "sudo bash -c 'if grep -q \"^MPE_AUDIO_ENGINE=\" /etc/mpe/mpe.env 2>/dev/null; then sed -i \"s/^MPE_AUDIO_ENGINE=.*/MPE_AUDIO_ENGINE=${engine}/\" /etc/mpe/mpe.env; else echo MPE_AUDIO_ENGINE=${engine} >> /etc/mpe/mpe.env; fi'"
-    echo "$MPE_CLI_NAME: MPE_AUDIO_ENGINE=${engine} — reboot the Pi to apply"
 }
 
 cmd_engine_mask_jackd() {
