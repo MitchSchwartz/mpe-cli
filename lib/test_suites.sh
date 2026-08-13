@@ -112,6 +112,7 @@ mpe_cli_test_suite_modules() {
                 tests.test_audio_profile \
                 tests.test_audio_profile_persist \
                 tests.test_detect_audio_device \
+                tests.test_mpe_env_file \
                 tests.test_usb_audio_recovery \
                 tests.test_uac2_card \
                 tests.test_uac2_stall_watchdog \
@@ -125,7 +126,8 @@ mpe_cli_test_suite_modules() {
             printf '%s\n' \
                 tests.test_surge_audio \
                 tests.test_surge_playback \
-                tests.test_surge_poly_governor
+                tests.test_surge_poly_governor \
+                tests.test_surge_monitor
             ;;
         patch)
             printf '%s\n' \
