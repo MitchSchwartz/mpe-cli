@@ -24,7 +24,9 @@ done
 if [ -f /etc/mpe/mpe.env ]; then
   echo ""
   echo "  /etc/mpe/mpe.env:"
-  grep -E "^(MPE_UI_MODE|MPE_AUDIO_PROFILE|MPE_AUDIO_ENGINE)=" /etc/mpe/mpe.env 2>/dev/null | sed "s/^/    /" || true
+  # MPE_AUDIO_ENGINE is retired (JACK is the only engine); it is deliberately
+  # not shown — a stale value from a pre-amendment appliance has no effect.
+  grep -E "^(MPE_UI_MODE|MPE_AUDIO_PROFILE)=" /etc/mpe/mpe.env 2>/dev/null | sed "s/^/    /" || true
 fi
 '
 }
