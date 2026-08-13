@@ -9,7 +9,7 @@ MPE_CLI_NAME="$(basename "$0")"
 
 # Bump on any change consuming repos may pin against: new subcommand, new test
 # suite, or changed exit-code contract. See commands/version.sh.
-MPE_CLI_VERSION="1.2.0"
+MPE_CLI_VERSION="1.2.1"
 
 # shellcheck source=../lib/config.sh
 source "$MPE_CLI_ROOT/lib/config.sh"

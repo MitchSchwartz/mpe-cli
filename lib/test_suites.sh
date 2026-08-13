@@ -109,6 +109,7 @@ mpe_cli_test_suite_modules() {
         audio)
             printf '%s\n' \
                 tests.test_audio_engine \
+                tests.test_audio_switch_progress \
                 tests.test_audio_profile \
                 tests.test_audio_profile_persist \
                 tests.test_detect_audio_device \
