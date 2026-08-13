@@ -7,8 +7,20 @@
 # checkout: the product repo carries feature work on unmerged branches (the
 # looper and APC modules live on yolo/looper-phase0, not dev). Suite expansion
 # is therefore filtered against tests/ at run time — see
-# mpe_cli_test_unittest_cmd. A suite that expands to nothing is an error, never
-# a vacuous pass.
+# mpe_cli_test_unittest_cmd.
+#
+# Exit contract — a run that did not test what it was asked to test must not
+# report success:
+#
+#   0  every module in the suite ran, and passed
+#   1  a test failed, or the suite matched no module at all
+#   3  the modules present passed, but some were absent from this checkout
+#
+# Exit 3 exists because a partial run is the quiet form of the false green this
+# registry was built to kill: `mpe test looper` on dev used to run five of
+# thirteen modules, print a note to stderr, and exit 0. Pass --allow-partial to
+# accept a partial run deliberately (exit 0), which is the right call when you
+# are on a branch that legitimately does not carry the rest.
 
 MPE_TEST_SUITE_NAMES=(
     all
@@ -175,6 +187,44 @@ mpe_cli_test_suite_list() {
     done
 }
 
+# The `all` suite mirrors the product repo's CI, which runs two jobs: unittest
+# discovery and a set of shell tests. Emitting only the first made `all` a
+# strict subset of the gate while every doc described it as equal to it — so a
+# green `mpe test local all` could sit on top of a failing shell test.
+#
+# Shell tests are globbed rather than named, so a new tests/test_*.sh is picked
+# up here without a registry edit. `mpe test coverage` separately checks that
+# CI names each one, which is the half a glob cannot cover.
+mpe_cli_test_all_cmd() {
+    cat <<'EOF'
+_mpe_rc=0
+
+echo "--- unittest discover ---"
+python3 -m unittest discover -s tests -q || _mpe_rc=$?
+
+_mpe_sh_found=0
+_mpe_sh_failed=""
+for _mpe_sh in tests/test_*.sh; do
+    [ -e "$_mpe_sh" ] || continue
+    _mpe_sh_found=$((_mpe_sh_found + 1))
+    echo "--- $_mpe_sh ---"
+    bash "$_mpe_sh" || _mpe_sh_failed="$_mpe_sh_failed $_mpe_sh"
+done
+
+if [ "$_mpe_sh_found" -eq 0 ]; then
+    echo "note: no tests/test_*.sh in this checkout" >&2
+fi
+
+if [ -n "$_mpe_sh_failed" ]; then
+    echo "" >&2
+    echo "FAIL: shell tests failed:$_mpe_sh_failed" >&2
+    _mpe_rc=1
+fi
+
+exit "$_mpe_rc"
+EOF
+}
+
 # Build fixed unittest command for repo cwd (no user injection).
 #
 # Module names come from the registry above, never from argv; the suite name is
@@ -184,12 +234,30 @@ mpe_cli_test_suite_list() {
 # each is on.
 mpe_cli_test_unittest_cmd() {
     local suite="$1"
+    local allow_partial="${2:-0}"
     local modules
     modules="$(mpe_cli_test_suite_modules "$suite")" || return 1
 
     if [ "$suite" = all ]; then
-        printf '%s' 'python3 -m unittest discover -s tests -q'
+        mpe_cli_test_all_cmd
         return 0
+    fi
+
+    local partial_gate=""
+    if [ "$allow_partial" != 1 ]; then
+        partial_gate=$(
+            cat <<EOF
+if [ -n "\$_mpe_skipped" ]; then
+    echo "" >&2
+    echo "INCOMPLETE: suite '$suite' ran only the modules present here." >&2
+    echo "Absent:\$_mpe_skipped" >&2
+    echo "What ran, passed — but this is not evidence for suite '$suite'." >&2
+    echo "Check out the branch carrying those modules, or re-run with" >&2
+    echo "--allow-partial to accept a partial run." >&2
+    exit 3
+fi
+EOF
+        )
     fi
 
     cat <<EOF
@@ -209,7 +277,13 @@ if [ -z "\$_mpe_mods" ]; then
     echo "error: suite '$suite' matched no test modules in this checkout" >&2
     exit 1
 fi
+_mpe_rc=0
 # shellcheck disable=SC2086
-python3 -m unittest \$_mpe_mods -q
+python3 -m unittest \$_mpe_mods -q || _mpe_rc=\$?
+if [ "\$_mpe_rc" -ne 0 ]; then
+    exit "\$_mpe_rc"
+fi
+$partial_gate
+exit 0
 EOF
 }
