@@ -38,11 +38,37 @@ mpe test pi                # full suite on appliance
 mpe test list              # named suite registry
 mpe test apc               # example: APC + control-surface tests only
 mpe test pi looper         # example: looper tests on Pi
+mpe test coverage          # fail if a test module belongs to no suite
+mpe version                # print CLI version
+mpe version --check 1.1.0  # exit 1 if the installed CLI is older
 mpe midi-list              # USB + MIDI port snapshot (read-only)
 mpe restart surge          # or touch | all
 mpe record                 # Ctrl+C to stop
 mpe pull-videos -o ~/Videos --delete-source
 ```
+
+### Test suites
+
+Named suites are a fixed registry in [`lib/test_suites.sh`](lib/test_suites.sh) — module
+paths never come from argv. Two properties keep the registry honest:
+
+- **`mpe test coverage`** fails when the product repo has a test module that no
+  suite names. Run it whenever tests are added; the registry cannot silently
+  fall behind.
+- A named suite **skips modules absent from the checkout** (feature work lives on
+  unmerged branches) and says which it skipped. A suite matching *nothing* is an
+  error, never a vacuous pass.
+
+### Version pinning
+
+Consuming repos assert a floor so a stale CLI can't produce misleading results:
+
+```bash
+mpe version --check 1.1.0 || exit 1   # 0 = ok, 1 = too old, 2 = bad input
+```
+
+Bump `MPE_CLI_VERSION` in [`bin/mpe`](bin/mpe) on any change a consumer may pin
+against: a new subcommand, a new suite, or a changed exit-code contract.
 
 ## Architecture
 

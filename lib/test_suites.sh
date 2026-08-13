@@ -1,4 +1,14 @@
 # Fixed unittest suite registry — enum names only (no passthrough args).
+#
+# Every module in the product repo's tests/ must appear in at least one suite.
+# `mpe test coverage` enforces that; see lib/test_coverage.sh.
+#
+# Suites may legitimately list modules that are absent from the current
+# checkout: the product repo carries feature work on unmerged branches (the
+# looper and APC modules live on yolo/looper-phase0, not dev). Suite expansion
+# is therefore filtered against tests/ at run time — see
+# mpe_cli_test_unittest_cmd. A suite that expands to nothing is an error, never
+# a vacuous pass.
 
 MPE_TEST_SUITE_NAMES=(
     all
@@ -11,6 +21,7 @@ MPE_TEST_SUITE_NAMES=(
     surge
     patch
     calibration
+    system
 )
 
 mpe_cli_test_suite_is_valid() {
@@ -29,15 +40,31 @@ mpe_cli_test_suite_modules() {
     local name="$1"
     case "$name" in
         all) ;;
-        apc) printf '%s\n' tests.test_apc_mini tests.test_control_surfaces ;;
-        control-surfaces) printf '%s\n' tests.test_control_surfaces tests.test_apc_mini ;;
+        apc | control-surfaces)
+            # control-surfaces is an alias of apc. Kept as one list so the two
+            # names cannot drift apart the way two hand-typed lists did.
+            printf '%s\n' \
+                tests.test_apc_mini \
+                tests.test_apc_led \
+                tests.test_apc_session_midi \
+                tests.test_control_surfaces
+            ;;
         looper)
+            # test_apc_led is cross-listed with apc: LED feedback is driven by
+            # looper state, so it belongs to both.
             printf '%s\n' \
                 tests.test_looper_engine \
                 tests.test_looper_devices \
                 tests.test_looper_xruns \
                 tests.test_looper_session \
                 tests.test_looper_period_debug \
+                tests.test_looper_alsa_stderr \
+                tests.test_looper_bar_clock \
+                tests.test_looper_health \
+                tests.test_looper_hud \
+                tests.test_looper_timing_publisher \
+                tests.test_looper_timing_state \
+                tests.test_clip_matrix \
                 tests.test_apc_led
             ;;
         midi)
@@ -62,11 +89,13 @@ mpe_cli_test_suite_modules() {
                 tests.test_context_menu \
                 tests.test_scrollable_action_list \
                 tests.test_content_scroll_hints \
+                tests.test_mixer_controls \
                 tests.test_ui_text_settings_detail \
                 tests.test_ui_theme
             ;;
         audio)
             printf '%s\n' \
+                tests.test_audio_engine \
                 tests.test_audio_profile \
                 tests.test_audio_profile_persist \
                 tests.test_detect_audio_device \
@@ -115,12 +144,28 @@ mpe_cli_test_suite_modules() {
                 tests.test_calibration_loader_messages \
                 tests.test_calibrate_midi
             ;;
+        system)
+            # Appliance lifecycle: power/shutdown path, splash, networking.
+            printf '%s\n' \
+                tests.test_shutdown_measure \
+                tests.test_dsi_splash_shutdown \
+                tests.test_wifi_manager
+            ;;
         *)
             echo "$MPE_CLI_NAME test: unknown suite: $name" >&2
             echo "Run '$MPE_CLI_NAME test list' for suite names." >&2
             return 1
             ;;
     esac
+}
+
+# Every module named by any suite, deduplicated. Used by the coverage guard.
+mpe_cli_test_all_registered_modules() {
+    local name
+    for name in "${MPE_TEST_SUITE_NAMES[@]}"; do
+        [ "$name" = all ] && continue
+        mpe_cli_test_suite_modules "$name"
+    done | sed 's/^tests\.//' | sort -u
 }
 
 mpe_cli_test_suite_list() {
@@ -131,14 +176,40 @@ mpe_cli_test_suite_list() {
 }
 
 # Build fixed unittest command for repo cwd (no user injection).
+#
+# Module names come from the registry above, never from argv; the suite name is
+# validated against MPE_TEST_SUITE_NAMES before it reaches here. The emitted
+# script filters the list against tests/ in the working directory so the same
+# command is correct on a laptop clone and on the appliance, whatever branch
+# each is on.
 mpe_cli_test_unittest_cmd() {
     local suite="$1"
     local modules
     modules="$(mpe_cli_test_suite_modules "$suite")" || return 1
+
     if [ "$suite" = all ]; then
         printf '%s' 'python3 -m unittest discover -s tests -q'
-    else
-        # shellcheck disable=SC2086
-        printf 'python3 -m unittest %s -q' "$(echo "$modules" | tr '\n' ' ' | sed 's/ $//')"
+        return 0
     fi
+
+    cat <<EOF
+_mpe_mods=""
+_mpe_skipped=""
+for _mpe_m in $(echo "$modules" | tr '\n' ' '); do
+    if [ -f "tests/\${_mpe_m#tests.}.py" ]; then
+        _mpe_mods="\$_mpe_mods \$_mpe_m"
+    else
+        _mpe_skipped="\$_mpe_skipped \${_mpe_m#tests.}"
+    fi
+done
+if [ -n "\$_mpe_skipped" ]; then
+    echo "note: suite '$suite' lists modules absent from this checkout:\$_mpe_skipped" >&2
+fi
+if [ -z "\$_mpe_mods" ]; then
+    echo "error: suite '$suite' matched no test modules in this checkout" >&2
+    exit 1
+fi
+# shellcheck disable=SC2086
+python3 -m unittest \$_mpe_mods -q
+EOF
 }

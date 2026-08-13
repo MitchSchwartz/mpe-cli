@@ -7,6 +7,10 @@ set -euo pipefail
 MPE_CLI_ROOT="$(cd "$(dirname "$(readlink -f "$0" 2>/dev/null || echo "$0")")/.." && pwd)"
 MPE_CLI_NAME="$(basename "$0")"
 
+# Bump on any change consuming repos may pin against: new subcommand, new test
+# suite, or changed exit-code contract. See commands/version.sh.
+MPE_CLI_VERSION="1.1.0"
+
 # shellcheck source=../lib/config.sh
 source "$MPE_CLI_ROOT/lib/config.sh"
 # shellcheck source=../lib/ssh.sh
@@ -27,7 +31,9 @@ Read-only (agent-safe):
   sysinfo                   Board, kernel/preempt, EEPROM, RT limits, audio config
   power [seconds]           Sample ARM clock/throttle/volts under load (default 15s)
   test [local|pi] [suite]   Run unit tests (default: local, all); test list for suites
+  test coverage [local|pi]  Fail if any test module belongs to no suite
   midi-list [local|pi]      USB + ALSA MIDI port snapshot (read-only)
+  version [--check x.y.z]   Print version, or assert a minimum (exit 1 if older)
 
 Operations:
   record [file] [fps]       Record touch UI (Ctrl+C to stop)
@@ -72,6 +78,7 @@ mpe_cli_dispatch() {
         sysinfo) handler=sysinfo ;;
         power) handler=power ;;
         test) handler=test ;;
+        version | --version | -V) handler=version ;;
         midi-list | midilist | midi) handler=midi-list ;;
         restart) handler=restart ;;
         rt) handler=rt ;;
