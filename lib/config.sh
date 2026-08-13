@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Load laptop-side appliance SSH config (no product-repo dependency).
 
 MPE_CLI_CONFIG="${MPE_CLI_CONFIG:-${HOME}/.config/mpe/mpe.env}"

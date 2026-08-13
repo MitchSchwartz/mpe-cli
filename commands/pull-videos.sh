@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 cmd_pull_videos() {
     mpe_cli_require_config
     local dest="./recordings"

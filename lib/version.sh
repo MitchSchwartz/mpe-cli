@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Version comparison for `mpe version --check`.
 #
 # MPE_CLI_VERSION itself is declared in bin/mpe alongside MPE_CLI_ROOT and

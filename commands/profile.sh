@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Audio profile switch (standalone | usb-host | usb-host-session).
 
 cmd_profile() {

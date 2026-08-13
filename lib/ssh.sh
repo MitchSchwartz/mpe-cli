@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # SSH/SCP wrappers — fixed host from config only (no --host passthrough).
 
 mpe_cli_ssh() {

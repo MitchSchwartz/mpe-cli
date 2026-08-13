@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # shellcheck source=../lib/repo.sh
 source "$MPE_CLI_ROOT/lib/repo.sh"
 # shellcheck source=../lib/target.sh

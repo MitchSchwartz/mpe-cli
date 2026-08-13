@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 cmd_record() {
     mpe_cli_require_config
     local remote_out=""

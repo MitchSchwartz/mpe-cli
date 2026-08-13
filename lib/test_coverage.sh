@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Drift guard for the hand-maintained suite registry in lib/test_suites.sh.
 #
 # The registry is typed by hand, so it goes stale every time the product repo

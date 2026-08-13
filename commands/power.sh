@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Sample ARM clock / throttle / voltage over a window (read-only).
 #
 # A single sysinfo reading cannot distinguish "governor idling at the 600 MHz

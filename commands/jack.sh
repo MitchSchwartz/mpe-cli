@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # JACK graph-server bring-up — manual experiment, never the boot path.
 #
 # Surge already has JUCE's JACK backend compiled in (it dlopens libjack.so.0),

@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Shared local|pi target parsing and dispatch (read-only ops).
 
 mpe_cli_target_is_known() {

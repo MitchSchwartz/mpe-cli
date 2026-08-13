@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 cmd_restart() {
     mpe_cli_require_config
     local target="${1:-}"

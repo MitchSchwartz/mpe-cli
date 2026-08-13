@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Fixed unittest suite registry — enum names only (no passthrough args).
 #
 # Every module in the product repo's tests/ must appear in at least one suite.

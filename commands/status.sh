@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 cmd_status() {
     mpe_cli_require_config
     mpe_cli_remote_bash '
