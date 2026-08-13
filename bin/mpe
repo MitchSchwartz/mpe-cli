@@ -34,7 +34,7 @@ Operations:
   pull-videos [options]     Download ~/mpe-demo-*.mkv from appliance
     -o, --output DIR        Destination (default: ./recordings)
     --delete-source         Remove from appliance after download
-  restart <surge|touch|looper|jackd|all> Restart fixed systemd units only
+  restart <surge|touch|looper|jackd|watchdog|all> Restart fixed systemd units only
   rt status                  Show configured + live SCHED_FIFO state (read-only)
   rt surge|looper <1-95|off> Set realtime priority; restart that service
   jack <sub>                 JACK graph-server experiment (never the boot path)
@@ -46,6 +46,8 @@ Operations:
   looper restart             Restart mpe-looper.service only
   looper debug on|off        Toggle period-overrun logging (/etc/mpe/mpe.env)
   looper buffer 512|1024     Set Surge + looper period; restart both services
+  profile status             Show MPE_AUDIO_PROFILE + gadget units
+  profile set <name>         standalone | usb-host | usb-host-session
 
 Config: \$MPE_CLI_CONFIG (default: ~/.config/mpe/mpe.env)
 Security: AGENTS.md in this repo · pattern: OM-Repo Docs/appliance-cli-pattern.md
@@ -76,6 +78,7 @@ mpe_cli_dispatch() {
         jack) handler=jack ;;
         engine) handler=engine ;;
         looper) handler=looper ;;
+        profile) handler=profile ;;
         record) handler=record ;;
         pull-videos | pull) handler=pull-videos ;;
         *)

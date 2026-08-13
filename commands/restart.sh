@@ -3,8 +3,8 @@ cmd_restart() {
     local target="${1:-}"
     case "$target" in
         surge)
-            mpe_cli_ssh "sudo systemctl restart surge-xt-cli.service"
-            echo "$MPE_CLI_NAME: restarted surge-xt-cli.service"
+            mpe_cli_ssh "sudo systemctl restart surge-xt-cli.service && sudo systemctl start surge-watchdog.service"
+            echo "$MPE_CLI_NAME: restarted surge-xt-cli.service (+ watchdog start)"
             ;;
         touch)
             mpe_cli_ssh "sudo systemctl restart touch-patch-browser.service"
@@ -17,6 +17,10 @@ cmd_restart() {
         jackd)
             mpe_cli_ssh "sudo systemctl restart mpe-jackd.service"
             echo "$MPE_CLI_NAME: restarted mpe-jackd.service"
+            ;;
+        watchdog)
+            mpe_cli_ssh "sudo systemctl restart surge-watchdog.service"
+            echo "$MPE_CLI_NAME: restarted surge-watchdog.service"
             ;;
         all)
             mpe_cli_remote_bash '
