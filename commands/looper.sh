@@ -38,6 +38,21 @@ cmd_looper() {
         sl-smoke)
             cmd_looper_sl_smoke "$@"
             ;;
+        sl-diagnose)
+            cmd_looper_sl_diagnose "$@"
+            ;;
+        sl-rewire)
+            cmd_looper_sl_rewire "$@"
+            ;;
+        sl-stop)
+            cmd_looper_sl_stop "$@"
+            ;;
+        sl-reset)
+            cmd_looper_sl_reset "$@"
+            ;;
+        sl-restart)
+            cmd_looper_sl_restart "$@"
+            ;;
         -h | --help | help | "")
             cat <<EOF
 Usage: $MPE_CLI_NAME looper deploy [branch]
@@ -47,6 +62,9 @@ Usage: $MPE_CLI_NAME looper deploy [branch]
        $MPE_CLI_NAME looper enable|disable
        $MPE_CLI_NAME looper sl-clips [local|pi]
        $MPE_CLI_NAME looper sl-smoke [local|pi]
+       $MPE_CLI_NAME looper sl-diagnose [local|pi]
+       $MPE_CLI_NAME looper sl-rewire [local|pi]
+       $MPE_CLI_NAME looper sl-restart [local|pi]
 
   deploy    git pull on Pi + restart mpe-looper.service (default branch: $(mpe_cli_default_looper_branch))
   restart   systemctl restart mpe-looper.service only
@@ -56,6 +74,11 @@ Usage: $MPE_CLI_NAME looper deploy [branch]
   disable   Remove MPE_LOOPER_ENABLED from /etc/mpe/mpe.env
   sl-clips  Generate 16 SooperLooper fixture WAVs (default target: pi)
   sl-smoke  Restart SooperLooper -l 16, load clips, trigger all, sample load (default: pi)
+  sl-diagnose 45s soak: xrun delta, fan-in count, peak dBFS (default: pi)
+  sl-rewire   Fix graph: common_out -> playback, dry=0 all loops (default: pi)
+  sl-stop     Pause all SooperLooper loops immediately (default: pi)
+  sl-reset    Pause + undo_all every loop — silence + clear (default: pi)
+  sl-restart  Restart SooperLooper on JACK + wire record path (after jackd restart)
 EOF
             ;;
         *)
@@ -131,6 +154,103 @@ cmd_looper_sl_smoke() {
     local target
     target="$(mpe_cli_looper_sl_target "${1:-pi}")"
     mpe_cli_looper_run_sl_script "scripts/sooperlooper/smoke-16-loops.sh" "$target" "SooperLooper 16-loop smoke"
+}
+
+cmd_looper_sl_diagnose() {
+    local target
+    target="$(mpe_cli_looper_sl_target "${1:-pi}")"
+    if [ "$target" = pi ]; then
+        mpe_cli_require_config
+        echo "=== SooperLooper 16-loop crackle diagnostic (Pi) ==="
+        echo "Host: $PI_USER@$PI_HOST"
+        mpe_cli_remote_bash "
+set -euo pipefail
+$(mpe_cli_remote_repo_cd)
+git fetch origin docs/sooperlooper-eval 2>/dev/null || true
+git pull --ff-only origin docs/sooperlooper-eval 2>/dev/null || true
+script=\"scripts/sooperlooper/diagnose-16loop-crackle.sh\"
+if [ ! -f \"\$script\" ]; then
+  echo 'missing script: '\$script >&2
+  exit 1
+fi
+export MPE_SL_DIAG_SEC=\"\${MPE_SL_DIAG_SEC:-45}\"
+bash \"\$script\"
+"
+        return
+    fi
+    mpe_cli_looper_run_sl_script "scripts/sooperlooper/diagnose-16loop-crackle.sh" "$target" "SooperLooper 16-loop crackle diagnostic"
+}
+
+cmd_looper_sl_rewire() {
+    local target
+    target="$(mpe_cli_looper_sl_target "${1:-pi}")"
+    if [ "$target" = pi ]; then
+        mpe_cli_require_config
+        echo "=== SooperLooper JACK rewire (Pi) ==="
+        echo "Host: $PI_USER@$PI_HOST"
+        mpe_cli_remote_bash "
+set -euo pipefail
+$(mpe_cli_remote_repo_cd)
+git fetch origin docs/sooperlooper-eval 2>/dev/null || true
+git pull --ff-only origin docs/sooperlooper-eval 2>/dev/null || true
+bash scripts/sooperlooper/stop-all-loops.sh 2>/dev/null || true
+bash scripts/sooperlooper/wire-jack-graph.sh rewire
+echo ''
+echo '=== playback fan-in ==='
+jack_lsp -c 2>/dev/null | awk '/^system:playback/ { inblock=1; next } inblock && /^[[:space:]]/ { print; next } inblock { inblock=0 }' | head -20
+"
+        return
+    fi
+    mpe_cli_looper_run_sl_script "scripts/sooperlooper/wire-jack-graph.sh" "$target" "SooperLooper JACK rewire"
+}
+
+mpe_cli_looper_sl_pi_pull() {
+    cat <<EOF
+set -euo pipefail
+$(mpe_cli_remote_repo_cd)
+git fetch origin docs/sooperlooper-eval 2>/dev/null || true
+git pull --ff-only origin docs/sooperlooper-eval 2>/dev/null || true
+EOF
+}
+
+cmd_looper_sl_stop() {
+    local target
+    target="$(mpe_cli_looper_sl_target "${1:-pi}")"
+    if [ "$target" = pi ]; then
+        mpe_cli_require_config
+        echo "=== SooperLooper stop all loops (Pi) ==="
+        mpe_cli_remote_bash "$(mpe_cli_looper_sl_pi_pull)
+bash scripts/sooperlooper/stop-all-loops.sh"
+        return
+    fi
+    mpe_cli_looper_run_sl_script "scripts/sooperlooper/stop-all-loops.sh" "$target" "SooperLooper stop all loops"
+}
+
+cmd_looper_sl_reset() {
+    local target
+    target="$(mpe_cli_looper_sl_target "${1:-pi}")"
+    if [ "$target" = pi ]; then
+        mpe_cli_require_config
+        echo "=== SooperLooper reset all loops (Pi) ==="
+        mpe_cli_remote_bash "$(mpe_cli_looper_sl_pi_pull)
+bash scripts/sooperlooper/reset-all-loops.sh"
+        return
+    fi
+    mpe_cli_looper_run_sl_script "scripts/sooperlooper/reset-all-loops.sh" "$target" "SooperLooper reset all loops"
+}
+
+cmd_looper_sl_restart() {
+    local target
+    target="$(mpe_cli_looper_sl_target "${1:-pi}")"
+    if [ "$target" = pi ]; then
+        mpe_cli_require_config
+        echo "=== SooperLooper restart + JACK graph (Pi) ==="
+        echo "Host: $PI_USER@$PI_HOST"
+        mpe_cli_remote_bash "$(mpe_cli_looper_sl_pi_pull)
+bash scripts/sooperlooper/restart-sooperlooper.sh"
+        return
+    fi
+    mpe_cli_looper_run_sl_script "scripts/sooperlooper/restart-sooperlooper.sh" "$target" "SooperLooper restart + JACK graph"
 }
 
 cmd_looper_deploy() {
