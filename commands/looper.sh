@@ -44,6 +44,9 @@ cmd_looper() {
         sl-rewire)
             cmd_looper_sl_rewire "$@"
             ;;
+        sl-bench)
+            cmd_looper_sl_bench "$@"
+            ;;
         sl-stop)
             cmd_looper_sl_stop "$@"
             ;;
@@ -65,6 +68,7 @@ Usage: $MPE_CLI_NAME looper deploy [branch]
        $MPE_CLI_NAME looper sl-diagnose [local|pi]
        $MPE_CLI_NAME looper sl-rewire [local|pi]
        $MPE_CLI_NAME looper sl-restart [local|pi]
+       $MPE_CLI_NAME looper sl-bench [start|restart|stop|status]
 
   deploy    git pull on Pi + restart mpe-looper.service (default branch: $(mpe_cli_default_looper_branch))
   restart   systemctl restart mpe-looper.service only
@@ -79,6 +83,8 @@ Usage: $MPE_CLI_NAME looper deploy [branch]
   sl-stop     Pause all SooperLooper loops immediately (default: pi)
   sl-reset    Pause + undo_all every loop — silence + clear (default: pi)
   sl-restart  Restart SooperLooper on JACK + wire record path (after jackd restart)
+  sl-bench    Start/stop the APC 16-pad bench on the Pi (pulls first).
+              MPE_SL_SYNC_MODE=grid|freeform  MPE_SL_GRID_CLOCK=internal|transport
 EOF
             ;;
         *)
@@ -204,13 +210,78 @@ jack_lsp -c 2>/dev/null | awk '/^system:playback/ { inblock=1; next } inblock &&
     mpe_cli_looper_run_sl_script "scripts/sooperlooper/wire-jack-graph.sh" "$target" "SooperLooper JACK rewire"
 }
 
+mpe_cli_sl_branch() {
+    # Default to whatever the Pi already has checked out. Hard-coding a branch
+    # here used to pull docs/sooperlooper-eval over whatever you were testing.
+    printf '%s' "${MPE_SL_BRANCH:-}"
+}
+
 mpe_cli_looper_sl_pi_pull() {
     cat <<EOF
 set -euo pipefail
 $(mpe_cli_remote_repo_cd)
-git fetch origin docs/sooperlooper-eval 2>/dev/null || true
-git pull --ff-only origin docs/sooperlooper-eval 2>/dev/null || true
+_br="$(mpe_cli_sl_branch)"
+[ -n "\$_br" ] || _br="\$(git rev-parse --abbrev-ref HEAD)"
+git fetch origin "\$_br" 2>/dev/null || true
+git pull --ff-only origin "\$_br" 2>/dev/null || true
 EOF
+}
+
+cmd_looper_sl_bench() {
+    local action="${1:-start}"
+    mpe_cli_require_config
+
+    local mode="${MPE_SL_SYNC_MODE:-grid}"
+    local clock="${MPE_SL_GRID_CLOCK:-internal}"
+    local log="/tmp/sooperlooper-apc-bench.log"
+
+    case "$action" in
+        status)
+            echo "=== APC bench status (Pi) ==="
+            mpe_cli_remote_bash "
+pgrep -af 'sooperlooper-apc-bench.py' | grep -v pgrep || echo 'bench: NOT RUNNING'
+echo '--- startup ---'
+grep -m5 -E 'bench:|APC \[' ${log} 2>/dev/null || echo '(no log)'
+"
+            ;;
+        stop)
+            echo "=== APC bench stop (Pi) ==="
+            mpe_cli_remote_bash "
+pkill -f 'sooperlooper-apc-bench.py' 2>/dev/null || true
+sleep 1
+pgrep -af 'sooperlooper-apc-bench.py' | grep -v pgrep && echo 'bench: still running' || echo 'bench: stopped'
+"
+            ;;
+        start | restart)
+            echo "=== APC bench ${action} (Pi) ==="
+            echo "Host: $PI_USER@$PI_HOST"
+            echo "Mode: MPE_SL_SYNC_MODE=${mode} MPE_SL_GRID_CLOCK=${clock}"
+            # Absolute python path + explicit cwd: wrapper scripts have failed
+            # from the wrong cwd before and the failure was silent.
+            mpe_cli_remote_bash "$(mpe_cli_looper_sl_pi_pull)
+echo \"bench: repo at \$(git log --oneline -1)\"
+pkill -f 'sooperlooper-apc-bench.py' 2>/dev/null || true
+sleep 1
+: > ${log}
+cd \"\$(pwd)\"
+MPE_SL_SYNC_MODE='${mode}' MPE_SL_GRID_CLOCK='${clock}' PYTHONUNBUFFERED=1 \
+  setsid nohup /usr/bin/python3 \"\$(pwd)/scripts/sooperlooper-apc-bench.py\" \
+  >> ${log} 2>&1 < /dev/null &
+sleep 4
+if pgrep -f 'sooperlooper-apc-bench.py' > /dev/null; then
+  echo \"bench: running pid \$(pgrep -f 'sooperlooper-apc-bench.py' | head -1)\"
+else
+  echo 'bench: FAILED TO START' >&2
+fi
+echo '--- startup ---'
+head -6 ${log}
+"
+            ;;
+        *)
+            echo "$MPE_CLI_NAME looper sl-bench: unknown action: $action (use start|restart|stop|status)" >&2
+            exit 1
+            ;;
+    esac
 }
 
 cmd_looper_sl_stop() {

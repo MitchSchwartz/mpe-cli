@@ -24,6 +24,9 @@ cmd_rt() {
         status)
             cmd_rt_status "$@"
             ;;
+        check)
+            cmd_rt_check "$@"
+            ;;
         surge | looper)
             echo "$MPE_CLI_NAME rt $sub: removed — there is no per-service RT knob left." >&2
             echo "Surge and the looper inherit realtime priority from jackd" >&2
@@ -34,9 +37,14 @@ cmd_rt() {
         -h | --help | help | "")
             cat <<EOF
 Usage: $MPE_CLI_NAME rt status
+       $MPE_CLI_NAME rt check
 
   status   Verify the RT chain end to end — the unit's LimitRTPRIO ceiling and
            the live scheduling policy of jackd and each audio client.
+  check    Same evidence, as a PASS/FAIL gate. Exit 0 only if every audio
+           client has a live SCHED_FIFO thread. Exit 1 otherwise. Use this as
+           a measurement precondition so a run cannot be recorded against an
+           appliance that was not actually realtime.
 
 There is no set command. RT is assigned by jackd (LimitRTPRIO=95); Surge's
 audio thread is SCHED_FIFO 65 by design. The MPE_*_RT_PRIORITY env keys and the
@@ -44,7 +52,7 @@ chrt wrapper are retired — setting them changed nothing and reported success.
 EOF
             ;;
         *)
-            echo "$MPE_CLI_NAME rt: unknown subcommand: $sub (use status)" >&2
+            echo "$MPE_CLI_NAME rt: unknown subcommand: $sub (use status|check)" >&2
             exit 1
             ;;
     esac
@@ -93,5 +101,55 @@ for _spec in "jackd:jackd" "surge:surge-xt-cli"; do
             "$_label" "$_pid" "$_a"
     fi
 done
+EOF
+}
+
+# Runtime RT precondition as a gate, not a report. Reads the audio THREAD:
+# the main thread of a JACK client is SCHED_OTHER by design, so process-level
+# policy is the answer most likely to mislead.
+cmd_rt_check() {
+    mpe_cli_require_config
+    mpe_cli_ssh "bash -s" <<'EOF'
+_fail=0
+for _spec in "jackd:jackd" "surge:surge-xt-cli"; do
+    _label="${_spec%%:*}"
+    _pat="${_spec##*:}"
+    _pid="$(pgrep -x "$_pat" 2>/dev/null | head -1)"
+    [ -z "$_pid" ] && _pid="$(pgrep -f "$_pat" 2>/dev/null | head -1)"
+    if [ -z "$_pid" ]; then
+        printf "FAIL  %-7s not running\n" "$_label"
+        _fail=1
+        continue
+    fi
+    _tid=""
+    for _t in /proc/"$_pid"/task/*; do
+        _t="${_t##*/}"
+        if [ "$(chrt -p "$_t" 2>/dev/null | sed -n 's/.*policy: //p')" = "SCHED_FIFO" ]; then
+            _prio="$(chrt -p "$_t" 2>/dev/null | sed -n 's/.*priority: //p')"
+            printf "PASS  %-7s audio thread tid=%s SCHED_FIFO %s\n" "$_label" "$_t" "$_prio"
+            _tid="$_t"
+            break
+        fi
+    done
+    if [ -z "$_tid" ]; then
+        printf "FAIL  %-7s pid=%s has NO SCHED_FIFO thread — not realtime\n" "$_label" "$_pid"
+        _fail=1
+    fi
+done
+_gov="$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 2>/dev/null)"
+if [ "$_gov" = performance ]; then
+    printf "PASS  %-7s %s\n" "governor" "$_gov"
+else
+    printf "FAIL  %-7s %s (expected performance)\n" "governor" "${_gov:-unknown}"
+    _fail=1
+fi
+if [ "$_fail" -eq 0 ]; then
+    echo ""
+    echo "rt check: PASS — safe to record a measurement against this appliance"
+else
+    echo ""
+    echo "rt check: FAIL — do not record measurements; fix RT first" >&2
+fi
+exit "$_fail"
 EOF
 }

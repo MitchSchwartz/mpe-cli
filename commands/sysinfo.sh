@@ -87,7 +87,27 @@ printf "limits.d:    "; ls /etc/security/limits.d/ 2>/dev/null | tr "\n" " "; ec
 _pid=$(pgrep -f surge-xt-cli | head -1)
 if [ -n "$_pid" ]; then
     printf "Surge pid:   %s\n" "$_pid"
-    printf "Scheduling:  "; chrt -p "$_pid" 2>/dev/null | tr "\n" " "; echo
+    # Read the AUDIO THREAD, not the process. The main thread of a JACK client
+    # is SCHED_OTHER by design; jackd elevates only the audio callback thread.
+    # NOTE: this whole block is inside a single-quoted remote string — no
+    # apostrophes, and use double quotes for sed.
+    # Reporting process policy here printed "SCHED_OTHER priority 0" on a
+    # perfectly healthy appliance and needed a footnote to interpret.
+    _rt_tid=""; _rt_prio=""
+    for _t in /proc/"$_pid"/task/*; do
+        _t="${_t##*/}"
+        if [ "$(chrt -p "$_t" 2>/dev/null | sed -n "s/.*policy: //p")" = "SCHED_FIFO" ]; then
+            _rt_tid="$_t"
+            _rt_prio="$(chrt -p "$_t" 2>/dev/null | sed -n "s/.*priority: //p")"
+            break
+        fi
+    done
+    if [ -n "$_rt_tid" ]; then
+        printf "Audio thread: tid=%s SCHED_FIFO %s  (main thread SCHED_OTHER is correct)\n" \
+            "$_rt_tid" "$_rt_prio"
+    else
+        printf "Audio thread: NONE with SCHED_FIFO — realtime is NOT active\n"
+    fi
     printf "RT limits:   "; grep -E "realtime priority|locked memory" /proc/$_pid/limits 2>/dev/null | tr -s " " | tr "\n" "| "; echo
 else
     echo "Surge pid:   not running"
