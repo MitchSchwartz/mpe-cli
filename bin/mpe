@@ -9,7 +9,7 @@ MPE_CLI_NAME="$(basename "$0")"
 
 # Bump on any change consuming repos may pin against: new subcommand, new test
 # suite, or changed exit-code contract. See commands/version.sh.
-MPE_CLI_VERSION="1.2.1"
+MPE_CLI_VERSION="1.2.2"
 
 # shellcheck source=../lib/config.sh
 source "$MPE_CLI_ROOT/lib/config.sh"
@@ -52,6 +52,8 @@ Operations:
   looper restart             Restart mpe-looper.service only
   looper debug on|off        Toggle period-overrun logging (/etc/mpe/mpe.env)
   looper buffer 512|1024     Set Surge + looper period; restart both services
+  looper sl-clips [local|pi] Generate 16 SooperLooper fixture WAVs (default: pi)
+  looper sl-smoke [local|pi] 16-loop load/trigger smoke + VmRSS/jack_cpu_load (default: pi)
   profile status             Show MPE_AUDIO_PROFILE + gadget units
   profile set <name>         standalone | usb-host | usb-host-session
 

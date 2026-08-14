@@ -3,6 +3,8 @@
 
 # shellcheck source=../lib/repo.sh
 source "$MPE_CLI_ROOT/lib/repo.sh"
+# shellcheck source=../lib/target.sh
+source "$MPE_CLI_ROOT/lib/target.sh"
 
 mpe_cli_default_looper_branch() {
     printf '%s' "${MPE_LOOPER_DEPLOY_BRANCH:-yolo/looper-phase0}"
@@ -30,6 +32,12 @@ cmd_looper() {
         disable)
             cmd_looper_disable "$@"
             ;;
+        sl-clips)
+            cmd_looper_sl_clips "$@"
+            ;;
+        sl-smoke)
+            cmd_looper_sl_smoke "$@"
+            ;;
         -h | --help | help | "")
             cat <<EOF
 Usage: $MPE_CLI_NAME looper deploy [branch]
@@ -37,20 +45,92 @@ Usage: $MPE_CLI_NAME looper deploy [branch]
        $MPE_CLI_NAME looper debug on|off
        $MPE_CLI_NAME looper buffer 512|1024
        $MPE_CLI_NAME looper enable|disable
+       $MPE_CLI_NAME looper sl-clips [local|pi]
+       $MPE_CLI_NAME looper sl-smoke [local|pi]
 
-  deploy   git pull on Pi + restart mpe-looper.service (default branch: $(mpe_cli_default_looper_branch))
-  restart  systemctl restart mpe-looper.service only
-  debug    Toggle MPE_LOOPER_DEBUG in /etc/mpe/mpe.env and restart looper
-  buffer   Set MPE_SURGE_BUFFER_SIZE (Surge + looper period) and restart both services
-  enable   Set MPE_LOOPER_ENABLED=1 in /etc/mpe/mpe.env (D5 guard test — reboot after)
-  disable  Remove MPE_LOOPER_ENABLED from /etc/mpe/mpe.env
+  deploy    git pull on Pi + restart mpe-looper.service (default branch: $(mpe_cli_default_looper_branch))
+  restart   systemctl restart mpe-looper.service only
+  debug     Toggle MPE_LOOPER_DEBUG in /etc/mpe/mpe.env and restart looper
+  buffer    Set MPE_SURGE_BUFFER_SIZE (Surge + looper period) and restart both services
+  enable    Set MPE_LOOPER_ENABLED=1 in /etc/mpe/mpe.env (D5 guard test — reboot after)
+  disable   Remove MPE_LOOPER_ENABLED from /etc/mpe/mpe.env
+  sl-clips  Generate 16 SooperLooper fixture WAVs (default target: pi)
+  sl-smoke  Restart SooperLooper -l 16, load clips, trigger all, sample load (default: pi)
 EOF
             ;;
         *)
-            echo "$MPE_CLI_NAME looper: unknown subcommand: $sub (use deploy|restart|debug|buffer)" >&2
+            echo "$MPE_CLI_NAME looper: unknown subcommand: $sub (use deploy|restart|debug|buffer|sl-clips|sl-smoke)" >&2
             exit 1
             ;;
     esac
+}
+
+# SooperLooper eval scripts live in the product repo; default target is the appliance.
+mpe_cli_looper_sl_target() {
+    local raw="${1:-pi}"
+    if mpe_cli_target_is_known "$raw"; then
+        mpe_cli_normalize_target "$raw"
+    else
+        echo "$MPE_CLI_NAME looper: unknown target: $raw (use local or pi)" >&2
+        exit 1
+    fi
+}
+
+mpe_cli_looper_run_sl_script() {
+    local script_rel="$1"
+    local target="$2"
+    local label="$3"
+
+    case "$target" in
+        local)
+            local repo script
+            repo="$(mpe_cli_require_local_repo)"
+            script="${repo}/${script_rel}"
+            if [ ! -f "$script" ]; then
+                echo "$MPE_CLI_NAME looper: missing script: $script" >&2
+                echo "Checkout docs/sooperlooper-eval (or newer) in $repo" >&2
+                exit 1
+            fi
+            echo "=== $label (local) ==="
+            echo "Repo: $repo"
+            (
+                cd "$repo" || exit 1
+                bash "$script"
+            )
+            ;;
+        pi)
+            mpe_cli_require_config
+            echo "=== $label (Pi) ==="
+            echo "Host: $PI_USER@$PI_HOST"
+            mpe_cli_remote_bash "
+set -euo pipefail
+$(mpe_cli_remote_repo_cd)
+script=\"${script_rel}\"
+if [ ! -f \"\$script\" ]; then
+  echo 'missing script: '\$script >&2
+  echo 'git pull docs/sooperlooper-eval on the Pi' >&2
+  exit 1
+fi
+bash \"\$script\"
+"
+            ;;
+        *)
+            echo "$MPE_CLI_NAME looper: internal target error: $target" >&2
+            exit 1
+            ;;
+    esac
+}
+
+cmd_looper_sl_clips() {
+    local target
+    target="$(mpe_cli_looper_sl_target "${1:-pi}")"
+    mpe_cli_looper_run_sl_script "scripts/sooperlooper/generate-test-clips.sh" "$target" "SooperLooper test clips"
+}
+
+cmd_looper_sl_smoke() {
+    local target
+    target="$(mpe_cli_looper_sl_target "${1:-pi}")"
+    mpe_cli_looper_run_sl_script "scripts/sooperlooper/smoke-16-loops.sh" "$target" "SooperLooper 16-loop smoke"
 }
 
 cmd_looper_deploy() {

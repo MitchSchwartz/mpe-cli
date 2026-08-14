@@ -46,6 +46,8 @@ mpe midi-list              # USB + MIDI port snapshot (read-only)
 mpe restart surge          # or touch | all
 mpe record                 # Ctrl+C to stop
 mpe pull-videos -o ~/Videos --delete-source
+mpe looper sl-clips [local|pi]   # SooperLooper eval: 16 fixture WAVs (default: pi)
+mpe looper sl-smoke [local|pi]   # SooperLooper eval: 16-loop load/trigger smoke (default: pi)
 ```
 
 ### Test suites
