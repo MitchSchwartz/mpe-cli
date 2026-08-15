@@ -44,6 +44,9 @@ cmd_looper() {
         sl-rewire)
             cmd_looper_sl_rewire "$@"
             ;;
+        sl-watchdog)
+            cmd_looper_sl_watchdog "$@"
+            ;;
         sl-hud)
             cmd_looper_sl_hud "$@"
             ;;
@@ -77,6 +80,7 @@ Usage: $MPE_CLI_NAME looper deploy [branch]
        $MPE_CLI_NAME looper sl-bench [start|restart|stop|status]
        $MPE_CLI_NAME looper sl-health [--record-test]
        $MPE_CLI_NAME looper sl-hud [start|restart|stop|status]
+       $MPE_CLI_NAME looper sl-watchdog [start|restart|stop|status|once]
 
   deploy    git pull on Pi + restart mpe-looper.service (default branch: $(mpe_cli_default_looper_branch))
   restart   systemctl restart mpe-looper.service only
@@ -91,6 +95,8 @@ Usage: $MPE_CLI_NAME looper deploy [branch]
   sl-stop     Pause all SooperLooper loops immediately (default: pi)
   sl-reset    Pause + undo_all every loop — silence + clear (default: pi)
   sl-restart  Restart SooperLooper on JACK + wire record path (after jackd restart)
+  sl-watchdog Repairs the JACK graph automatically; ALARMS on a wedged engine
+              rather than restarting it (a restart destroys recorded loops).
   sl-hud      Beat/bar HUD monitor. Follows whichever clock is live
               (SL internal tempo or JACK transport).
   sl-health   Is the engine COMMAND path alive, not just the read path? The
@@ -238,6 +244,50 @@ _br="$(mpe_cli_sl_branch)"
 git fetch origin "\$_br" 2>/dev/null || true
 git pull --ff-only origin "\$_br" 2>/dev/null || true
 EOF
+}
+
+cmd_looper_sl_watchdog() {
+    local action="${1:-start}"
+    mpe_cli_require_config
+    local log="/tmp/sl-watchdog.log"
+    case "$action" in
+        once)
+            mpe_cli_remote_bash "$(mpe_cli_looper_sl_pi_pull)
+python3 scripts/sooperlooper/sl-watchdog.py --once"
+            ;;
+        status)
+            mpe_cli_remote_bash "
+pgrep -af 'sl-watchdog' | grep -v pgrep || echo 'watchdog: NOT RUNNING'
+echo '--- alarm file ---'
+cat ~/.mpe_sl_watchdog.json 2>/dev/null | head -40 || echo '(none)'
+echo ''
+tail -8 ${log} 2>/dev/null
+"
+            ;;
+        stop)
+            mpe_cli_remote_bash "
+pkill -f 'sl-watchdog' 2>/dev/null || true
+sleep 1
+pgrep -af 'sl-watchdog' | grep -v pgrep && echo 'watchdog: still running' || echo 'watchdog: stopped'
+"
+            ;;
+        start | restart)
+            echo "=== SL watchdog \${action} (Pi) ==="
+            mpe_cli_remote_bash "$(mpe_cli_looper_sl_pi_pull)
+pkill -f 'sl-watchdog' 2>/dev/null || true
+sleep 1
+: > ${log}
+PYTHONUNBUFFERED=1 setsid nohup /usr/bin/python3 \"\$(pwd)/scripts/sooperlooper/sl-watchdog.py\" >> ${log} 2>&1 < /dev/null &
+sleep 4
+pgrep -f 'sl-watchdog' > /dev/null && echo \"watchdog: running pid \$(pgrep -f 'sl-watchdog' | head -1)\" || echo 'watchdog: FAILED TO START' >&2
+tail -5 ${log}
+"
+            ;;
+        *)
+            echo "$MPE_CLI_NAME looper sl-watchdog: unknown action: \$action" >&2
+            exit 1
+            ;;
+    esac
 }
 
 cmd_looper_sl_hud() {
