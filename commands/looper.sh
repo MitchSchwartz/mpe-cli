@@ -44,6 +44,9 @@ cmd_looper() {
         sl-rewire)
             cmd_looper_sl_rewire "$@"
             ;;
+        sl-health)
+            cmd_looper_sl_health "$@"
+            ;;
         sl-bench)
             cmd_looper_sl_bench "$@"
             ;;
@@ -69,6 +72,7 @@ Usage: $MPE_CLI_NAME looper deploy [branch]
        $MPE_CLI_NAME looper sl-rewire [local|pi]
        $MPE_CLI_NAME looper sl-restart [local|pi]
        $MPE_CLI_NAME looper sl-bench [start|restart|stop|status]
+       $MPE_CLI_NAME looper sl-health [--record-test]
 
   deploy    git pull on Pi + restart mpe-looper.service (default branch: $(mpe_cli_default_looper_branch))
   restart   systemctl restart mpe-looper.service only
@@ -83,6 +87,9 @@ Usage: $MPE_CLI_NAME looper deploy [branch]
   sl-stop     Pause all SooperLooper loops immediately (default: pi)
   sl-reset    Pause + undo_all every loop — silence + clear (default: pi)
   sl-restart  Restart SooperLooper on JACK + wire record path (after jackd restart)
+  sl-health   Is the engine COMMAND path alive, not just the read path? The
+              engine can wedge so /get answers but /set and /hit are ignored.
+              Exit 0 = accepts commands. Run before debugging anything else.
   sl-bench    Start/stop the APC 16-pad bench on the Pi (pulls first).
               MPE_SL_SYNC_MODE=grid|freeform  MPE_SL_GRID_CLOCK=internal|transport
 EOF
@@ -225,6 +232,14 @@ _br="$(mpe_cli_sl_branch)"
 git fetch origin "\$_br" 2>/dev/null || true
 git pull --ff-only origin "\$_br" 2>/dev/null || true
 EOF
+}
+
+cmd_looper_sl_health() {
+    mpe_cli_require_config
+    echo "=== SooperLooper engine health (Pi) ==="
+    echo "Host: $PI_USER@$PI_HOST"
+    mpe_cli_remote_bash "$(mpe_cli_looper_sl_pi_pull)
+python3 scripts/sooperlooper/sl-health.py $*"
 }
 
 cmd_looper_sl_bench() {
