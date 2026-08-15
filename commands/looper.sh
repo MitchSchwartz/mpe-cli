@@ -44,6 +44,9 @@ cmd_looper() {
         sl-rewire)
             cmd_looper_sl_rewire "$@"
             ;;
+        sl-hud)
+            cmd_looper_sl_hud "$@"
+            ;;
         sl-health)
             cmd_looper_sl_health "$@"
             ;;
@@ -73,6 +76,7 @@ Usage: $MPE_CLI_NAME looper deploy [branch]
        $MPE_CLI_NAME looper sl-restart [local|pi]
        $MPE_CLI_NAME looper sl-bench [start|restart|stop|status]
        $MPE_CLI_NAME looper sl-health [--record-test]
+       $MPE_CLI_NAME looper sl-hud [start|restart|stop|status]
 
   deploy    git pull on Pi + restart mpe-looper.service (default branch: $(mpe_cli_default_looper_branch))
   restart   systemctl restart mpe-looper.service only
@@ -87,6 +91,8 @@ Usage: $MPE_CLI_NAME looper deploy [branch]
   sl-stop     Pause all SooperLooper loops immediately (default: pi)
   sl-reset    Pause + undo_all every loop — silence + clear (default: pi)
   sl-restart  Restart SooperLooper on JACK + wire record path (after jackd restart)
+  sl-hud      Beat/bar HUD monitor. Follows whichever clock is live
+              (SL internal tempo or JACK transport).
   sl-health   Is the engine COMMAND path alive, not just the read path? The
               engine can wedge so /get answers but /set and /hit are ignored.
               Exit 0 = accepts commands. Run before debugging anything else.
@@ -232,6 +238,50 @@ _br="$(mpe_cli_sl_branch)"
 git fetch origin "\$_br" 2>/dev/null || true
 git pull --ff-only origin "\$_br" 2>/dev/null || true
 EOF
+}
+
+cmd_looper_sl_hud() {
+    local action="${1:-start}"
+    mpe_cli_require_config
+    local log="/tmp/sl-hud-monitor.log"
+    case "$action" in
+        status)
+            echo "=== SL HUD monitor status (Pi) ==="
+            mpe_cli_remote_bash "
+pgrep -af 'sl_hud_monitor|sl-hud-monitor' | grep -v pgrep || echo 'hud: NOT RUNNING'
+echo '--- state file ---'
+cat ~/.mpe_sl_hud_state.json 2>/dev/null || echo '(no state file)'
+echo ''
+"
+            ;;
+        stop)
+            echo "=== SL HUD monitor stop (Pi) ==="
+            mpe_cli_remote_bash "
+pkill -f 'sl_hud_monitor|sl-hud-monitor' 2>/dev/null || true
+sleep 1
+pgrep -af 'sl_hud_monitor|sl-hud-monitor' | grep -v pgrep && echo 'hud: still running' || echo 'hud: stopped'
+"
+            ;;
+        start | restart)
+            echo "=== SL HUD monitor ${action} (Pi) ==="
+            mpe_cli_remote_bash "$(mpe_cli_looper_sl_pi_pull)
+pkill -f 'sl_hud_monitor|sl-hud-monitor' 2>/dev/null || true
+sleep 1
+: > ${log}
+PYTHONUNBUFFERED=1 setsid nohup /usr/bin/python3 \"\$(pwd)/scripts/sooperlooper/sl-hud-monitor.py\" >> ${log} 2>&1 < /dev/null &
+sleep 3
+pgrep -f 'sl_hud_monitor|sl-hud-monitor' > /dev/null && echo \"hud: running pid \$(pgrep -f 'sl-hud-monitor' | head -1)\" || echo 'hud: FAILED TO START' >&2
+head -3 ${log}
+echo '--- state file ---'
+cat ~/.mpe_sl_hud_state.json 2>/dev/null || echo '(none yet)'
+echo ''
+"
+            ;;
+        *)
+            echo "$MPE_CLI_NAME looper sl-hud: unknown action: $action" >&2
+            exit 1
+            ;;
+    esac
 }
 
 cmd_looper_sl_health() {
