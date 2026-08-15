@@ -112,6 +112,19 @@ if [ -n "$_pid" ]; then
 else
     echo "Surge pid:   not running"
 fi
+# Uptime of the audio chain. "36 min, 0 xruns" and "6 hours, 0 xruns" are very
+# different claims, and without this you cannot tell which one you measured.
+echo ""
+printf "Chain uptime:\n"
+for _spec in "jackd:jackd" "surge:surge-xt-cli" "sooperlooper:sooperlooper"; do
+    _l="${_spec%%:*}"; _p="${_spec##*:}"
+    _u="$(pgrep -f "$_p" 2>/dev/null | head -1)"
+    if [ -n "$_u" ]; then
+        printf "  %-13s pid=%-7s up %s\n" "$_l" "$_u" "$(ps -o etime= -p "$_u" 2>/dev/null | tr -d " ")"
+    else
+        printf "  %-13s not running\n" "$_l"
+    fi
+done
 
 echo ""
 echo "=== SURGE AUDIO CONFIG ==="
