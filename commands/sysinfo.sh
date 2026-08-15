@@ -116,7 +116,7 @@ fi
 # different claims, and without this you cannot tell which one you measured.
 echo ""
 printf "Chain uptime:\n"
-for _spec in "jackd:jackd" "surge:surge-xt-cli" "sooperlooper:sooperlooper"; do
+for _spec in "jackd:jackd" "surge:surge-xt-cli" "sooperlooper:src/sooperlooper"; do
     _l="${_spec%%:*}"; _p="${_spec##*:}"
     _u="$(pgrep -f "$_p" 2>/dev/null | head -1)"
     if [ -n "$_u" ]; then
