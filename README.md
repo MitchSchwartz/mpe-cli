@@ -26,6 +26,7 @@ Ensure `~/.local/bin` is on your `PATH`.
 
 **Before first public push:** `./scripts/secret-scan.sh` (requires [gitleaks](https://github.com/gitleaks/gitleaks)). Optional pre-commit: `./scripts/install-git-hooks.sh`.
 
+
 ## Commands
 
 ```bash
