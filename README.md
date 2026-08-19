@@ -26,6 +26,8 @@ Ensure `~/.local/bin` is on your `PATH`.
 
 **Before first public push:** `./scripts/secret-scan.sh` (requires [gitleaks](https://github.com/gitleaks/gitleaks)). Optional pre-commit: `./scripts/install-git-hooks.sh`.
 
+**Yolobot / nerdrack sync:** nerdrack `om-yolo` cannot push to GitHub. After yolobot commits on the build box, from this clone run `./scripts/sync-yolo-cli.sh publish [branch]`. After merging to `main`, run `./scripts/sync-yolo-cli.sh update-nerdrack`.
+
 ## Commands
 
 ```bash
