@@ -65,43 +65,44 @@ EOF
 
 cmd_engine_status() {
     mpe_cli_require_config
-    mpe_cli_remote_bash '
-state_file="/run/mpe/engine.state"
-echo "=== ENGINE STATE ==="
-if [ -r "$state_file" ]; then
-    cat "$state_file"
-else
-    echo "(missing $state_file)"
-fi
-echo ""
-echo "=== UNITS ==="
-for unit in mpe-jackd.service surge-xt-cli.service surge-watchdog.service; do
-    if systemctl list-unit-files "$unit" >/dev/null 2>&1; then
-        printf "  %-24s active=%-12s enabled=%s\n" "$unit" \
-            "$(systemctl is-active "$unit" 2>/dev/null | head -1)" \
-            "$(systemctl is-enabled "$unit" 2>/dev/null | head -1)"
-    fi
-done
-if systemctl is-enabled mpe-jackd.service 2>/dev/null | grep -q masked; then
-    echo "  mpe-jackd.service is MASKED"
-fi
-echo ""
-echo "=== PROCESSES ==="
-printf "  jackd: "; pgrep -x jackd >/dev/null && pgrep -x jackd | head -1 || echo "not running"
-printf "  surge: "; pgrep -f surge-xt-cli >/dev/null && pgrep -f surge-xt-cli | head -1 || echo "not running"
-if command -v jack_lsp >/dev/null 2>&1 && pgrep -x jackd >/dev/null; then
+    # shellcheck source=../lib/snapshot.sh
+    source "$MPE_CLI_ROOT/lib/snapshot.sh"
+    mpe_cli_snapshot_fetch true || exit 1
+
+    echo "=== ENGINE STATE ==="
+    mpe_cli_render_engine_state_kv
     echo ""
-    echo "=== JACK GRAPH ==="
-    if jack_lsp 2>/dev/null | grep -qi surge; then
-        echo "  Surge on graph: yes"
-    else
-        echo "  Surge on graph: no"
+    echo "=== UNITS ==="
+    for unit in mpe-jackd surge-xt-cli surge-watchdog; do
+        stale="$(mpe_cli_snapshot_field --arg u "$unit" '.services[$u].stale // true')"
+        active="$(mpe_cli_snapshot_field --arg u "$unit" '.services[$u].active // "unknown"')"
+        enabled="$(mpe_cli_snapshot_field --arg u "$unit" '.services[$u].enabled // "unknown"')"
+        if [ "$stale" = "true" ]; then
+            active=unknown
+            enabled=unknown
+        fi
+        printf "  %-24s active=%-12s enabled=%s\n" "${unit}.service" "$active" "$enabled"
+    done
+    if [ "$(mpe_cli_snapshot_field --arg u mpe-jackd '.services[$u].enabled // empty')" = "masked" ]; then
+        echo "  mpe-jackd.service is MASKED"
     fi
-fi
-# The engine is unconditionally jack — there is no config surface left to show.
-# A stale MPE_AUDIO_ENGINE line from a pre-amendment appliance is deliberately
-# *not* surfaced here: it has no effect, and printing it would imply it does.
-'
+    echo ""
+    echo "=== PROCESSES ==="
+    jack_pid="$(mpe_cli_snapshot_field '.processes.jackd_pid // empty')"
+    surge_pid="$(mpe_cli_snapshot_field '.processes.surge_pid // empty')"
+    printf "  jackd: "; [ -n "$jack_pid" ] && echo "$jack_pid" || echo "not running"
+    printf "  surge: "; [ -n "$surge_pid" ] && echo "$surge_pid" || echo "not running"
+    graph_stale="$(mpe_cli_snapshot_field '.graph.stale // true')"
+    on_graph="$(mpe_cli_snapshot_field '.graph.surge_on_graph // empty')"
+    if [ "$graph_stale" != "true" ] && [ -n "$jack_pid" ]; then
+        echo ""
+        echo "=== JACK GRAPH ==="
+        if [ "$on_graph" = "true" ]; then
+            echo "  Surge on graph: yes"
+        else
+            echo "  Surge on graph: no"
+        fi
+    fi
 }
 
 cmd_engine_mask_jackd() {
