@@ -7,11 +7,7 @@ source "$MPE_CLI_ROOT/lib/repo.sh"
 source "$MPE_CLI_ROOT/lib/target.sh"
 
 mpe_cli_default_looper_branch() {
-    # dev is the branch the Pi runs. This defaulted to yolo/looper-phase0 long
-    # after that branch was deleted from the remote, so a bare `mpe looper
-    # deploy` fetched nothing, checked out the stale local copy, and quietly
-    # reverted the appliance to months-old looper code (2026-08-15).
-    printf '%s' "${MPE_LOOPER_DEPLOY_BRANCH:-dev}"
+    printf '%s' "${MPE_LOOPER_DEPLOY_BRANCH:-yolo/looper-phase0}"
 }
 
 cmd_looper() {
@@ -451,11 +447,7 @@ cmd_looper_deploy() {
     mpe_cli_remote_bash "$(mpe_cli_remote_repo_cd)
 branch=$(printf '%q' "$branch")
 git stash push -q -m mpe-looper-deploy -- scripts/mpe-looper.py 2>/dev/null || true
-if ! git fetch origin \"\$branch\"; then
-    echo \"mpe looper deploy: no remote branch '\$branch' — refusing to touch the checkout\" >&2
-    echo \"mpe looper deploy: still on \$(git branch --show-current) @ \$(git log --oneline -1)\" >&2
-    exit 1
-fi
+git fetch origin \"\$branch\"
 git checkout \"\$branch\"
 git pull origin \"\$branch\"
 if [ -x ./scripts/looper-deploy.sh ]; then
