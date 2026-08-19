@@ -337,8 +337,7 @@ cmd_jack_status() {
         stale="$(mpe_cli_snapshot_field --arg u "$unit" '.services[$u].stale // true')"
         active="$(mpe_cli_snapshot_field --arg u "$unit" '.services[$u].active // "unknown"')"
         if [ "$stale" = "true" ]; then active=unknown; fi
-        printf "  %-24s %s
-" "${unit}.service" "$active"
+        printf "  %-24s %s\n" "${unit}.service" "$active"
     done
     echo ""
 

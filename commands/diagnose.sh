@@ -8,7 +8,7 @@ cmd_diagnose() {
     echo "=== SESSION SNAPSHOT ==="
     echo "schema: $(mpe_cli_snapshot_field '.schema')"
     echo "mode:   $(mpe_cli_snapshot_field '.mode')"
-    echo "seq:    $(mpe_cli_snapshot_field '.seq')"
+    echo "seq:    $(mpe_cli_snapshot_field '.seq // "—"')"
     echo ""
     echo "=== ENGINE (from snapshot) ==="
     mpe_cli_render_engine_state_kv
