@@ -1,13 +1,20 @@
 # shellcheck shell=bash
 # Session snapshot — one fresh build per command (criterion 6).
 
+mpe_cli_snapshot_py_include() {
+    # Map shell probes flag to a Python literal for build_snapshot().
+    local probes="${1:-0}"
+    if [ "$probes" = "1" ]; then
+        printf '%s' "True"
+    else
+        printf '%s' "False"
+    fi
+}
+
 mpe_cli_snapshot_fetch() {
     # Arg: 1 = include runtime probes (processes/graph), 0 or empty = omit.
-    local repo probes="${1:-0}"
-    local py_include="False"
-    if [ "$probes" = "1" ]; then
-        py_include="True"
-    fi
+    local repo probes="${1:-0}" py_include
+    py_include="$(mpe_cli_snapshot_py_include "$probes")"
     repo="$(mpe_cli_remote_repo)"
     MPE_SNAPSHOT_JSON="$(
         mpe_cli_ssh "bash -lc $(printf '%q' "cd $repo && python3 - <<PY

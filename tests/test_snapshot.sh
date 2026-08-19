@@ -3,16 +3,14 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
-# py_include mapping used by mpe_cli_snapshot_fetch
+# shellcheck source=../lib/snapshot.sh
+source "$ROOT/lib/snapshot.sh"
+
 assert_include() {
     local probes="$1" expected="$2"
-    local py_include="False"
-    if [ "$probes" = "1" ]; then
-        py_include="True"
-    fi
     local got
     got="$(python3 - <<PY
-include = ${py_include}
+include = $(mpe_cli_snapshot_py_include "$probes")
 print(repr(include))
 PY
 )"
