@@ -2,17 +2,19 @@
 # Session snapshot — one fresh build per command (criterion 6).
 
 mpe_cli_snapshot_fetch() {
-    local repo extra
+    # Arg: 1 = include runtime probes (processes/graph), 0 or empty = omit.
+    local repo probes="${1:-0}"
+    local py_include="False"
+    if [ "$probes" = "1" ]; then
+        py_include="True"
+    fi
     repo="$(mpe_cli_remote_repo)"
-    extra="${1:-}"
     MPE_SNAPSHOT_JSON="$(
         mpe_cli_ssh "bash -lc $(printf '%q' "cd $repo && python3 - <<PY
 import json
 import sys
 from patch_browser.session_snapshot import build_snapshot
-include = ${extra:-False}
-if isinstance(include, str):
-    include = include.lower() in ('1', 'true', 'yes')
+include = ${py_include}
 try:
     snap = build_snapshot(include_runtime_probes=include)
 except ValueError as exc:
@@ -26,7 +28,7 @@ PY")"
 
 mpe_cli_require_jq() {
     if ! command -v jq >/dev/null 2>&1; then
-        echo "$MPE_CLI_NAME: jq is required for snapshot rendering" >&2
+        echo "$MPE_CLI_NAME: jq is required for snapshot rendering (apt install jq)" >&2
         exit 1
     fi
 }
