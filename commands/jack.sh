@@ -328,19 +328,6 @@ cmd_jack_ports() {
 
 cmd_jack_status() {
     mpe_cli_require_config
-    # shellcheck source=../lib/snapshot.sh
-    source "$MPE_CLI_ROOT/lib/snapshot.sh"
-    mpe_cli_snapshot_fetch || exit 1
-
-    echo "=== SYSTEMD (from snapshot — production units) ==="
-    for unit in surge-xt-cli surge-watchdog; do
-        stale="$(mpe_cli_snapshot_field --arg u "$unit" '.services[$u].stale // true')"
-        active="$(mpe_cli_snapshot_field --arg u "$unit" '.services[$u].active // "unknown"')"
-        if [ "$stale" = "true" ]; then active=unknown; fi
-        printf "  %-24s %s\n" "${unit}.service" "$active"
-    done
-    echo ""
-
     mpe_cli_ssh "bash -s" <<EOF
 # Process-level chrt lies here: jackd and a JACK client both keep a
 # SCHED_OTHER main thread and elevate only the audio thread. Report threads.
@@ -363,6 +350,10 @@ for _spec in "jackd:jackd" "surge:surge-xt-cli"; do
         esac
     done
 done
+
+echo ""
+echo "=== SYSTEMD (should be inactive during the experiment) ==="
+systemctl is-active surge-xt-cli.service surge-watchdog.service 2>&1 | tr '\n' ' '; echo
 
 echo ""
 echo "=== GRAPH ==="
