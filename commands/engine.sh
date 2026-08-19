@@ -74,7 +74,7 @@ cmd_engine_status() {
     echo ""
     echo "=== UNITS ==="
     for unit in mpe-jackd surge-xt-cli surge-watchdog; do
-        stale="$(mpe_cli_snapshot_field --arg u "$unit" '.services[$u].stale // true')"
+        stale="$(mpe_cli_snapshot_stale --arg u "$unit" '.services[$u].stale')"
         active="$(mpe_cli_snapshot_field --arg u "$unit" '.services[$u].active // "unknown"')"
         enabled="$(mpe_cli_snapshot_field --arg u "$unit" '.services[$u].enabled // "unknown"')"
         if [ "$stale" = "true" ]; then
@@ -92,8 +92,8 @@ cmd_engine_status() {
     surge_pid="$(mpe_cli_snapshot_field '.processes.surge_pid // empty')"
     printf "  jackd: "; [ -n "$jack_pid" ] && echo "$jack_pid" || echo "not running"
     printf "  surge: "; [ -n "$surge_pid" ] && echo "$surge_pid" || echo "not running"
-    graph_stale="$(mpe_cli_snapshot_field '.graph.stale // true')"
-    on_graph="$(mpe_cli_snapshot_field '.graph.surge_on_graph // empty')"
+    graph_stale="$(mpe_cli_snapshot_stale '.graph.stale')"
+    on_graph="$(mpe_cli_snapshot_field '.graph.surge_on_graph')"
     if [ "$graph_stale" != "true" ] && [ -n "$jack_pid" ]; then
         echo ""
         echo "=== JACK GRAPH ==="

@@ -45,6 +45,27 @@ mpe_cli_snapshot_field() {
     printf '%s' "$MPE_SNAPSHOT_JSON" | jq -r "$@"
 }
 
+# Read a boolean `stale` flag with the correct polarity.
+#
+# Do NOT write `.stale // true` in a jq filter. jq's `//` treats `false` as
+# absent, so a HEALTHY unit (stale=false) comes back `true` and every caller
+# blanks its fields to "unknown". Observed on the appliance 2026-08-19: `mpe
+# engine status` and `mpe jack status` reported active=unknown enabled=unknown
+# for three units that were active and enabled, and the JACK GRAPH section
+# never rendered. `mpe status` escaped it only because its branch lives inside
+# jq, where `false` behaves.
+#
+# Anything that is not literally `false` — null, absent, empty — is stale.
+mpe_cli_snapshot_stale() {
+    local value
+    value="$(mpe_cli_snapshot_field "$@")"
+    if [ "$value" = "false" ]; then
+        printf 'false'
+    else
+        printf 'true'
+    fi
+}
+
 mpe_cli_render_engine_state_kv() {
     local stale
     stale="$(mpe_cli_snapshot_field '.engine.stale')"

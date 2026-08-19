@@ -334,7 +334,7 @@ cmd_jack_status() {
 
     echo "=== SYSTEMD (from snapshot — production units) ==="
     for unit in surge-xt-cli surge-watchdog; do
-        stale="$(mpe_cli_snapshot_field --arg u "$unit" '.services[$u].stale // true')"
+        stale="$(mpe_cli_snapshot_stale --arg u "$unit" '.services[$u].stale')"
         active="$(mpe_cli_snapshot_field --arg u "$unit" '.services[$u].active // "unknown"')"
         if [ "$stale" = "true" ]; then active=unknown; fi
         printf "  %-24s %s\n" "${unit}.service" "$active"
