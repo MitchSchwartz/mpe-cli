@@ -74,10 +74,19 @@ mpe_cli_test_suite_modules() {
                 tests.test_looper_alsa_stderr \
                 tests.test_looper_bar_clock \
                 tests.test_looper_health \
-                tests.test_looper_hud \
+                tests.test_sl_hud \
                 tests.test_looper_timing_publisher \
                 tests.test_looper_timing_state \
                 tests.test_clip_matrix \
+                tests.test_apc_footswitch \
+                tests.test_loop_model \
+                tests.test_loop_mix \
+                tests.test_seam_merge \
+                tests.test_sl_seam_weld \
+                tests.test_footswitch_against_engine \
+                tests.test_session_snapshot \
+                tests.test_sl_grid_sync \
+                tests.test_sl_bench_listener \
                 tests.test_apc_led
             ;;
         midi)
@@ -89,13 +98,9 @@ mpe_cli_test_suite_modules() {
             ;;
         touch)
             printf '%s\n' \
+                tests.test_touch_browser_gestures \
                 tests.test_touch_browser_smoke \
                 tests.test_touch_press \
-                tests.test_touch_browser_nav_transitions \
-                tests.test_touch_browser_nested_nav \
-                tests.test_touch_browser_long_press \
-                tests.test_touch_browser_normalization_toggle \
-                tests.test_touch_browser_patch_reload \
                 tests.test_touch_audio_profile_async \
                 tests.test_touch_audio_profile_timeout \
                 tests.test_touch_calibration \
@@ -147,7 +152,8 @@ mpe_cli_test_suite_modules() {
                 tests.test_favorites_index \
                 tests.test_favorites_backup \
                 tests.test_migrate_favorites_v2 \
-                tests.test_json_store
+                tests.test_json_store \
+                tests.test_parse_fxp_metadata
             ;;
         calibration)
             printf '%s\n' \
