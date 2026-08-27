@@ -86,8 +86,8 @@ Usage: $MPE_CLI_NAME looper deploy [branch]
        $MPE_CLI_NAME looper sl-hud [start|restart|stop|status]
        $MPE_CLI_NAME looper sl-watchdog [start|restart|stop|status|once]
 
-  deploy    git pull on Pi + restart mpe-looper.service (default branch: $(mpe_cli_default_looper_branch))
-  restart   systemctl restart mpe-looper.service only
+  deploy    git pull on Pi + restart mpe-looper-session.service (default branch: $(mpe_cli_default_looper_branch))
+  restart   systemctl restart mpe-looper-session.service only
   debug     Toggle MPE_LOOPER_DEBUG in /etc/mpe/mpe.env and restart looper
   buffer    Set MPE_SURGE_BUFFER_SIZE (Surge + looper period) and restart both services
   enable    Set MPE_LOOPER_ENABLED=1 in /etc/mpe/mpe.env (D5 guard test — reboot after)
@@ -457,7 +457,7 @@ if ! git fetch origin \"\$branch\"; then
     exit 1
 fi
 git checkout \"\$branch\"
-git pull origin \"\$branch\"
+git reset --hard \"origin/\$branch\"
 if [ -x ./scripts/looper-deploy.sh ]; then
     ./scripts/looper-deploy.sh \"\$branch\"
 else
@@ -467,8 +467,12 @@ fi"
 
 cmd_looper_restart() {
     mpe_cli_require_config
-    mpe_cli_ssh "sudo systemctl restart mpe-looper.service"
-    echo "$MPE_CLI_NAME: restarted mpe-looper.service"
+    # mpe-looper.service does not exist on the appliance and never has. The
+    # unit that runs looper-session.py — the APC bench and the HUD — is
+    # mpe-looper-session.service. `mpe looper restart` is what you reach for
+    # when the pads are dead, and it failed with "Unit not found" every time.
+    mpe_cli_ssh "sudo systemctl restart mpe-looper-session.service"
+    echo "$MPE_CLI_NAME: restarted mpe-looper-session.service"
 }
 
 cmd_looper_debug() {
@@ -510,7 +514,7 @@ cmd_looper_buffer() {
     esac
     mpe_cli_ssh "sudo bash -c 'if grep -q \"^MPE_SURGE_BUFFER_SIZE=\" /etc/mpe/mpe.env 2>/dev/null; then sed -i \"s/^MPE_SURGE_BUFFER_SIZE=.*/MPE_SURGE_BUFFER_SIZE=${size}/\" /etc/mpe/mpe.env; else echo MPE_SURGE_BUFFER_SIZE=${size} >> /etc/mpe/mpe.env; fi'"
     mpe_cli_ssh "sudo systemctl restart surge-xt-cli.service"
-    mpe_cli_ssh "sudo systemctl restart mpe-looper.service"
+    mpe_cli_ssh "sudo systemctl restart mpe-looper-session.service"
     echo "$MPE_CLI_NAME: MPE_SURGE_BUFFER_SIZE=${size} — restarted surge + looper"
     echo "  Verify: mpe sysinfo && mpe logs looper -n 8"
     echo "  Note: looper-audio-route.sh on forces 512 — skip during 1024 A/B"
