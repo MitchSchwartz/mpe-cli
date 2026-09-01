@@ -14,7 +14,21 @@
 # surge-watchdog.service is BindsTo=surge-xt-cli.service, so stopping the unit
 # stops the watchdog too — it will not fight us for the process.
 
-MPE_JACK_BUFFERS="64 128 256 512 1024"
+# THE list lives on the appliance at config/jack-periods.conf. Fetched, not
+# mirrored -- the same reason _jack_pick_dac sources the appliance's own
+# audio-engine.sh. This constant had already drifted by 2026-09-01: it was
+# missing 32, 96 and 192, so `mpe jack buffer 96` was refused for a period the
+# appliance runs happily. Used only when the appliance cannot be reached.
+MPE_JACK_BUFFERS_FALLBACK="32 48 64 96 128 192 256 512 1024"
+MPE_JACK_BUFFERS="$MPE_JACK_BUFFERS_FALLBACK"
+
+_jack_load_buffers() {
+    local remote
+    remote="$(mpe_cli_ssh 'r=$(sed -n "s/^MPE_MODULE_REPO=//p" /etc/mpe/mpe.env 2>/dev/null | tail -1); r=${r%\"}; r=${r#\"}; [ -r "$r/config/jack-periods.conf" ] && sed -e "s/#.*//" -e "s/[[:space:]]//g" "$r/config/jack-periods.conf" | grep -E "^[0-9]+$" | tr "\n" " "' 2>/dev/null || true)"
+    remote="$(printf '%s' "$remote" | tr -s ' ' | sed -e 's/^ *//' -e 's/ *$//')"
+    [ -n "$remote" ] && MPE_JACK_BUFFERS="$remote"
+    return 0
+}
 MPE_JACK_PERIODS="2 3 4"
 MPE_JACK_RT_PRIO=70
 MPE_JACK_RATE=48000
@@ -156,6 +170,7 @@ cmd_jack_start() {
     mpe_cli_require_config
     local buf="${1:-512}" per="${2:-3}"
 
+    _jack_load_buffers
     mpe_cli_validate_enum "$buf" "$MPE_JACK_BUFFERS" "jack start: buffer"
     mpe_cli_validate_enum "$per" "$MPE_JACK_PERIODS" "jack start: periods"
 
@@ -221,6 +236,7 @@ EOF
 cmd_jack_buffer() {
     mpe_cli_require_config
     local buf="${1:-}"
+    _jack_load_buffers
     mpe_cli_validate_enum "$buf" "$MPE_JACK_BUFFERS" "jack buffer: frames"
 
     mpe_cli_ssh "bash -s" <<EOF
