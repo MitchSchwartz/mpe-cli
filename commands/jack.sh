@@ -64,16 +64,50 @@ EOF
     esac
 }
 
-# Pick the real output DAC: skip the SoC headphones, HDMI, the USB gadget and
-# the ALSA loopback. Those are all present on this board and none is the DAC.
+# Pick the real output DAC by sourcing the appliance's OWN card-identity
+# predicate, rather than keeping a copy of the list here.
+#
+# This snippet is shipped over SSH and runs ON the Pi, where the repo already
+# lives (every unit's ExecStart references it), so `mpe_card_is_virtual` is
+# available and there is no reason for a second list. There used to be one, it
+# drifted, and when snd-dummy became the Pi 5 idle sink this was one of the
+# places that never learned about it — `mpe jack start` would happily hand jackd
+# an inaudible card.
+#
+# It refuses rather than guessing if the predicate is unavailable: picking the
+# wrong card here silences the instrument, and a wrong answer is worse than no
+# answer.
 mpe_jack_detect_snippet() {
     cat <<'EOF'
 _jack_pick_dac() {
+    _repo=""
+    if [ -r /etc/mpe/mpe.env ]; then
+        _repo="$(sed -n 's/^MPE_MODULE_REPO=//p' /etc/mpe/mpe.env | tail -1)"
+        # Strip optional surrounding quotes with parameter expansion — nesting
+        # quotes inside an already-quoted heredoc is how this line broke once.
+        _repo="${_repo%\"}"; _repo="${_repo#\"}"
+        _repo="${_repo%\'}"; _repo="${_repo#\'}"
+    fi
+    if [ -z "$_repo" ] || [ ! -r "$_repo/scripts/lib/audio-engine.sh" ]; then
+        echo "mpe jack: cannot read scripts/lib/audio-engine.sh on the appliance —" >&2
+        echo "          refusing to guess which card is the DAC." >&2
+        return 1
+    fi
+    . "$_repo/scripts/lib/audio-engine.sh"
+
     aplay -l 2>/dev/null \
         | sed -n 's/^card \([0-9]\+\): \([^ ]*\) .*/\1 \2/p' \
-        | grep -viE ' (Headphones|vc4hdmi[0-9]*|UAC2Gadget|Loopback)$' \
-        | head -1 \
-        | awk '{print "hw:"$1}'
+        | while read -r _idx _id; do
+            # Headphones is skipped HERE but is deliberately not virtual in the
+            # shared predicate: this asks "which card is the preferred DAC", a
+            # different question from "can this card be heard at all".
+            case "$_id" in Headphones) continue ;; esac
+            if mpe_card_is_virtual "$_id"; then
+                continue
+            fi
+            echo "hw:$_idx"
+            break
+        done | head -1
 }
 EOF
 }
