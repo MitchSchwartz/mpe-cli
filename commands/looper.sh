@@ -448,13 +448,39 @@ cmd_looper_deploy() {
     local branch="${1:-$(mpe_cli_default_looper_branch)}"
     mpe_cli_validate_git_branch "$branch"
     echo "$MPE_CLI_NAME looper deploy → $PI_USER@$PI_HOST ($branch)"
+    # CI gate, BEFORE the checkout moves. The Pi asks GitHub whether the
+    # commit it is about to run has passed CI -- every job, the real-engine
+    # one included -- using the gate script from the target commit itself,
+    # so the checkout is never touched for a commit that is red, unjudged, or
+    # unreachable. scripts/looper-deploy.sh gates again after the reset as a
+    # belt for older paths; this is the braces. MPE_DEPLOY_SKIP_CI_GATE=1 on
+    # the laptop skips both, and says so in the log.
     mpe_cli_remote_bash "$(mpe_cli_remote_repo_cd)
 branch=$(printf '%q' "$branch")
+skip_gate=$(printf '%q' "${MPE_DEPLOY_SKIP_CI_GATE:-0}")
+export MPE_DEPLOY_SKIP_CI_GATE=\"\$skip_gate\"
 git stash push -q -m mpe-looper-deploy -- scripts/mpe-looper.py 2>/dev/null || true
 if ! git fetch origin \"\$branch\"; then
     echo \"mpe looper deploy: no remote branch '\$branch' — refusing to touch the checkout\" >&2
     echo \"mpe looper deploy: still on \$(git branch --show-current) @ \$(git log --oneline -1)\" >&2
     exit 1
+fi
+target=\$(git rev-parse \"origin/\$branch\")
+if [ \"\$skip_gate\" = 1 ]; then
+    echo \"mpe looper deploy: !! CI gate SKIPPED for \$target (MPE_DEPLOY_SKIP_CI_GATE=1)\"
+else
+    gate=\$(mktemp)
+    if ! git show \"origin/\$branch:scripts/ci_gate.py\" > \"\$gate\" 2>/dev/null; then
+        rm -f \"\$gate\"
+        echo \"mpe looper deploy: origin/\$branch (\$target) carries no scripts/ci_gate.py — refusing to touch the checkout\" >&2
+        exit 1
+    fi
+    if ! python3 \"\$gate\" --sha \"\$target\"; then
+        rm -f \"\$gate\"
+        echo \"mpe looper deploy: CI gate refused \$target — checkout untouched, still on \$(git log --oneline -1)\" >&2
+        exit 1
+    fi
+    rm -f \"\$gate\"
 fi
 git checkout \"\$branch\"
 git reset --hard \"origin/\$branch\"
