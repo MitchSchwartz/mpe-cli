@@ -94,7 +94,7 @@ echo "=== RESULT ==="
 printf "jackd:     "; command -v jackd >/dev/null && jackd --version 2>&1 | head -1 || echo "MISSING"
 printf "libjack:   "; ldconfig -p 2>/dev/null | grep -m1 libjack.so.0 || echo "MISSING"
 printf "jack_lsp:  "; command -v jack_lsp || echo "MISSING"
-printf "audio grp: "; id -nG | tr ' ' '\n' | grep -qx audio && echo "mitch is in audio" || echo "NOT in audio group"
+printf "audio grp: "; id -nG | tr ' ' '\n' | grep -qx audio && echo "user is in audio" || echo "NOT in audio group"
 printf "rt limits: "; grep -hE 'rtprio|memlock' /etc/security/limits.d/*.conf 2>/dev/null | tr -s ' ' | tr '\n' '|' || echo "none"
 echo ""
 EOF

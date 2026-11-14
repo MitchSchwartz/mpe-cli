@@ -6,7 +6,7 @@
 #
 # Suites may legitimately list modules that are absent from the current
 # checkout: the product repo carries feature work on unmerged branches (the
-# looper and APC modules live on yolo/looper-phase0, not dev). Suite expansion
+# looper and APC modules live on a feature branch, not dev). Suite expansion
 # is therefore filtered against tests/ at run time — see
 # mpe_cli_test_unittest_cmd.
 #

@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# Looper yolo deploy + systemd restart (fixed SSH surface for agents).
+# Looper deploy + systemd restart (fixed SSH surface for agents).
 
 # shellcheck source=../lib/repo.sh
 source "$MPE_CLI_ROOT/lib/repo.sh"
@@ -7,7 +7,7 @@ source "$MPE_CLI_ROOT/lib/repo.sh"
 source "$MPE_CLI_ROOT/lib/target.sh"
 
 mpe_cli_default_looper_branch() {
-    # dev is the branch the Pi runs. This defaulted to yolo/looper-phase0 long
+    # dev is the branch the Pi runs. This defaulted to a feature branch long
     # after that branch was deleted from the remote, so a bare `mpe looper
     # deploy` fetched nothing, checked out the stale local copy, and quietly
     # reverted the appliance to months-old looper code (2026-08-15).

@@ -48,7 +48,7 @@ Operations:
                              'jack stop' is the rollback to systemd Surge
   engine <sub>               Audio engine status + soak injections (production path)
                              status|mask-jackd|unmask-jackd|start-jackd|sync-units|kill-jackd
-  looper deploy [branch]     Pull yolo branch on Pi + restart mpe-looper.service
+  looper deploy [branch]     Pull branch on Pi + restart mpe-looper.service
   looper restart             Restart mpe-looper.service only
   looper debug on|off        Toggle period-overrun logging (/etc/mpe/mpe.env)
   looper buffer 512|1024     Set Surge + looper period; restart both services
